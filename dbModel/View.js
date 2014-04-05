@@ -47,4 +47,3 @@ dbModel.View = draw2d.Canvas.extend({
         this.getCommandStack().execute(command);
     }
 });
-

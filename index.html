@@ -38,6 +38,7 @@
 	<SCRIPT src="./lib/pathfinding-browser.min.js"></SCRIPT>
 
 	<SCRIPT src="./draw2d/src/draw2d.js"></SCRIPT>
+    <SCRIPT src="./draw2d/src/Configuration.js"></SCRIPT>
     <SCRIPT src="./draw2d/src/util/Debug.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/util/Color.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/util/ArrayList.js"> </SCRIPT>
@@ -47,6 +48,7 @@
     <SCRIPT src="./draw2d/src/util/spline/CubicSpline.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/util/spline/CatmullRomSpline.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/util/spline/BezierSpline.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/util/Base64.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/geo/PositionConstants.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/geo/Point.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/geo/Rectangle.js"> </SCRIPT>
@@ -58,26 +60,28 @@
     <SCRIPT src="./draw2d/src/command/CommandStackEvent.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandStackEventListener.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandMove.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/command/CommandMoveVertices.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/command/CommandMoveVertex.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/command/CommandAddVertex.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/command/CommandRemoveVertex.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandMoveLine.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/command/CommandMoveJunction.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandResize.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandConnect.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandReconnect.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandDelete.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/command/CommandAdd.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/command/CommandAddJunctionPoint.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/command/CommandRemoveJunctionPoint.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/ConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/DirectRouter.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/layout/connection/JunctionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/ManhattanConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/ManhattanBridgedConnectionRouter.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/layout/connection/InteractiveManhattanConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/CircuitConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/SplineConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/FanConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/MazeConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/MuteableManhattanConnectionRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/connection/SketchConnectionRouter.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/layout/connection/VertexRouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/mesh/MeshLayouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/mesh/ExplodeLayouter.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/layout/mesh/ProposedMeshChange.js"> </SCRIPT>
@@ -122,7 +126,8 @@
     <SCRIPT src="./draw2d/src/policy/figure/GlowSelectionFeedbackPolicy.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/policy/figure/SlimSelectionFeedbackPolicy.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/policy/line/LineSelectionFeedbackPolicy.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/policy/line/JunctionSelectionFeedbackPolicy.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/policy/line/VertexSelectionFeedbackPolicy.js"> </SCRIPT>
+    <SCRIPT src="./draw2d/src/policy/line/OrthogonalSelectionFeedbackPolicy.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/policy/port/PortFeedbackPolicy.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/policy/port/ElasticStrapFeedbackPolicy.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/policy/port/IntrusivePortsFeedbackPolicy.js"> </SCRIPT>
@@ -152,7 +157,6 @@
     <SCRIPT src="./draw2d/src/shape/basic/LineStartResizeHandle.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/shape/basic/LineEndResizeHandle.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/shape/basic/JunctionResizeHandle.js"> </SCRIPT>
-    <SCRIPT src="./draw2d/src/shape/basic/GhostJunctionResizeHandle.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/Port.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/InputPort.js"> </SCRIPT>
     <SCRIPT src="./draw2d/src/OutputPort.js"> </SCRIPT>
@@ -198,11 +202,13 @@
     <SCRIPT src="./lib/jquery-ui-1.8.23.custom.min.js"></SCRIPT>
     <SCRIPT src="./lib/jquery.layout.js"></SCRIPT>
 
-    <SCRIPT src="./gui/Application.js"></SCRIPT>
-	<SCRIPT src="./gui/View.js"></SCRIPT>
-	<SCRIPT src="./gui/Toolbar.js"></SCRIPT>
-	<SCRIPT src="./gui/document.js"></SCRIPT>
-	<SCRIPT src="./gui/shape/DBTable.js"></SCRIPT>
+    <SCRIPT src="./dbModel/Application.js"></SCRIPT>
+	<SCRIPT src="./dbModel/View.js"></SCRIPT>
+	<SCRIPT src="./dbModel/Toolbar.js"></SCRIPT>
+	<SCRIPT src="./dbModel/document.js"></SCRIPT>
+	<SCRIPT src="./dbModel/shape/DBTable.js"></SCRIPT>
+    <SCRIPT src="./dbModel/shape/TableConnection.js"></SCRIPT>
+    <SCRIPT src="./dbModel/shape/CustomLabel.js"></SCRIPT>
     
 	<script type="text/javascript">
 	/**
@@ -217,7 +223,7 @@
 	 */
 	draw2d.Connection.createConnection=function(sourcePort, targetPort){
 	    
-	    var conn= new draw2d.Connection();
+	    var conn= new dbModel.shape.TableConnection();//draw2d.Connection();
 	    conn.setColor("#5bcaff");
 	    conn.setStroke(2);
 	    return conn;
@@ -263,7 +269,7 @@
    </div>
    
    <div id="navigation" class="">
-    	<div data-shape="dbModel.shape.DBTable"   class="palette_node_element draw2d_droppable table_div">Table</div>
+    	<div data-shape="dbModel.shape.DBTable" class="palette_node_element draw2d_droppable table_div">Table</div>
    </div>
    
 </body>
