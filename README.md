@@ -1,4 +1,5 @@
 js2db
 =====
+JS API to create relational database diagrams
 
-Web app that uses draw2d to create a database diagram
+This Extension is entirely based on Draw2D touch, wich is a pure JavaScript application framework that works on all modern browsers from IE6 to the latest version of Chrome.
