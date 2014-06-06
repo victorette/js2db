@@ -7,5 +7,5 @@ This Extension is entirely based on Draw2D touch, wich is a pure JavaScript appl
 Screenshots
 -----------
 
-.. figure:: https://raw.github.com/victorette/js2db/master/docs/img/editor.png
+.. figure:: https://raw.github.com/victorette/js2db/master/docs/image/editor.png
    :alt: Drawning
