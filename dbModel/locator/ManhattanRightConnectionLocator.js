@@ -3,7 +3,7 @@
  *   Copyright (c) 2014 Giovanni Victorette
  ****************************************/
 /**
- * @class dbModel.shape.ManhattanRightConnectionLocator
+ * @class dbModel.locator.ManhattanRightConnectionLocator
  *
  * A ManhattanRightConnectionLocator that is used to place figures at the right position of a Manhattan routed
  * connection.
@@ -11,8 +11,8 @@
  * @author Giovanni Victorette
  * @extend draw2d.layout.locator.ConnectionLocator
  */
-dbModel.shape.ManhattanRightConnectionLocator = draw2d.layout.locator.ConnectionLocator.extend({
-    NAME: "dbModel.shape.ManhattanRightConnectionLocator",
+dbModel.locator.ManhattanRightConnectionLocator = draw2d.layout.locator.ConnectionLocator.extend({
+    NAME: "dbModel.locator.ManhattanRightConnectionLocator",
 
     /**
      * @constructor
