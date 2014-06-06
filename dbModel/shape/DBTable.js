@@ -8,8 +8,13 @@
  * @template
  * @returns {dbModel.shape.TableConnection}
  */
-draw2d.Connection.createConnection = function(sourcePort, targetPort) {
+draw2d.Connection.createConnection = function(sourcePort, targetPort, callback) {
     var conn = new dbModel.shape.TableConnection();
+    var labelSource = sourcePort.getParent().header.getChildren().data[0];
+    var labelTarget = targetPort.getParent().header.getChildren().data[0];
+    conn.label.setText(labelSource.getText() + "_" + labelTarget.getText());
+    conn.isNew = true;
+
     return conn;
 };
 
@@ -38,11 +43,17 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
         this.addFigure(this.header);
 
         this.contextMenuListeners = new draw2d.util.ArrayList();
+        this.onDropConnectionListeners = new draw2d.util.ArrayList();
+        this.newConnector = null;
     },
 
     addAttribute: function(index, entity) {
         var label = new dbModel.shape.CustomLabel(entity.text);
         label.setStroke(0);
+        label.setBold(entity.pk);
+        if (entity.pk) {
+            label.setCssClass('primary_key');
+        }
         label.setRadius(0);
         label.setBackgroundColor(null);
         label.setPadding(5);
@@ -84,11 +95,41 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
         this.classLabel.setText(name);
     },
 
+	getNewConnector: function() {
+        return this.newConnector;
+    },
+    
+    setNewConnector: function(connector) {
+        this.newConnector = connector;
+    },
+
     createCustomizedPort: function(type, name, position) {
         var newPort = null;
         switch(type) {
             case "draw2d_InputPort":
                 newPort = new draw2d.InputPort();
+                newPort.onConnect = function(connection) {
+                    if (connection.isNew) {
+                        var table = this.getParent();
+                        table.setNewConnector(connection);
+						connection.isNew = false;
+                    }
+                };
+                newPort.onDragLeave = function(figure) {
+                    this._super = function(figure) {
+                        if (!( figure instanceof draw2d.Port)) {
+                            return;
+                        }
+                    };
+                    if ( figure instanceof draw2d.OutputPort) {
+                        this._super(figure);
+                    } else if ( figure instanceof draw2d.HybridPort) {
+                        this._super(figure);
+                    }
+                    var table = this.getParent();
+                    table.onDropConnection(table.getNewConnector());
+                    table.setNewConnector(null);
+                };
                 break;
             case "draw2d_OutputPort":
                 newPort = new draw2d.OutputPort();
@@ -103,6 +144,12 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
         var locator;
         switch(position) {
             case "default":
+                break;
+            case "right":
+                locator = new dbModel.locator.PortRightLocator(this);
+                break;
+            case "left":
+                locator = new dbModel.locator.PortLeftLocator(this);
                 break;
             case "top":
                 locator = new draw2d.layout.locator.TopLocator(this);
@@ -126,6 +173,7 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
         this.setDimension(this.width, this.height);
 
         this.layoutPorts();
+        return newPort;
     },
 
     /**
@@ -136,29 +184,29 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
      */
     getPersistentAttributes: function() {
         var memento = this._super();
-		
-		if (this.header.getChildren().size > 0) {
-			memento.tableName = this.header.getChildren().data[0].getText();
-		}
-		
+
+        if (this.header.getChildren().size > 0) {
+            memento.tableName = this.header.getChildren().data[0].getText();
+        }
+
         memento.tablePorts = [];
         this.getPorts().each(function(index, port) {
-			var pos;
-			var userData = port.getUserData();
-			if (userData !== null) {
-				pos  = userData[userData.length - 1];
-			}
-			if (typeof pos === "undefined") {
-				pos = "default";
-			} else {
-				pos = pos.position;
-			}
-			memento.tablePorts.push({
+            var pos;
+            var userData = port.getUserData();
+            if (userData !== null) {
+                pos = userData[userData.length - 1];
+            }
+            if ( typeof pos === "undefined") {
+                pos = "default";
+            } else {
+                pos = pos.position;
+            }
+            memento.tablePorts.push({
                 type: port.getCssClass(),
                 name: port.getName(),
                 position: pos
             });
-		});
+        });
 
         memento.attributes = [];
         this.attributes.each(function(i, e) {
@@ -176,29 +224,16 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
         return memento;
     },
 
-    /**
-     * @method
-     * Read all attributes from the serialized properties and transfer them into the shape.
-     *
-     * @param {Object} memento
-     * @return
-     */
-    setPersistentAttributes: function(memento) {
-        this._super(memento);
-
-        this.header.resetChildren();
+	updateHeader: function(memento){
+		this.header.resetChildren();
 
         if ( typeof memento.tableName !== "undefined") {
             var label = this.createLabel(memento.tableName).setPadding(10).setFontColor("#5856d6");
             this.header.addFigure(label);
-        }
-
-        if ( typeof memento.tablePorts !== "undefined") {
-            $.each(memento.tablePorts, $.proxy(function(index, item) {
-                this.createCustomizedPort(item.type, item.name, item.position);
-            }, this));
-        }
-
+        }	
+	},
+	
+	updateAttributes: function(memento) {
         if ( typeof memento.attributes !== "undefined") {
             $.each(memento.attributes, $.proxy(function(i, e) {
                 var entity = this.addAttribute(i, e);
@@ -210,6 +245,26 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
                 entity.isNullable = e.isNullable;
             }, this));
         }
+    },
+    /**
+     * @method
+     * Read all attributes from the serialized properties and transfer them into the shape.
+     *
+     * @param {Object} memento
+     * @return
+     */
+    setPersistentAttributes: function(memento) {
+        this._super(memento);
+
+        this.updateHeader(memento);
+
+        if ( typeof memento.tablePorts !== "undefined") {
+            $.each(memento.tablePorts, $.proxy(function(index, item) {
+                this.createCustomizedPort(item.type, item.name, item.position);
+            }, this));
+        }
+
+        this.updateAttributes(memento);
 
         return this;
     },
@@ -233,6 +288,27 @@ dbModel.shape.DBTable = draw2d.shape.layout.VerticalLayout.extend({
                 throw "Object doesn't implement required callback method [onContextMenu]";
             }
         }
+    },
+
+    addOnDropConnectionListener: function(w) {
+        if (w !== null) {
+            if ( typeof w === "function") {
+                this.onDropConnectionListeners.add({
+                    onDropConnection: w
+                });
+            } else if ( typeof w.onDropConnection === "function") {
+                this.onDropConnectionListeners.add(w);
+            } else {
+                throw "Object doesn't implement required callback method [onDropConnection]";
+            }
+        }
+    },
+
+    onDropConnection: function(connection) {
+        var me = this;
+        me.onDropConnectionListeners.each(function(i, w) {
+            w.onDropConnection(connection, me);
+        });
     },
     /**
      * @method

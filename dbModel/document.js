@@ -1,11 +1,11 @@
 
-// Document template used if there is no diagram in database
+// Document template, used only if there is no diagram in database
 var jsonDocument = [
                     {
                         "type": "dbModel.shape.DBTable",
                         "id": "63c0f27a-716e-804c-6873-cd99b945b63f",
-                        "x": 80,
-                        "y": 59,
+                        "x": 41,
+                        "y": 21,
                         "width": 98,
                         "height": 81.265625,
                         "userData": null,
@@ -48,8 +48,8 @@ var jsonDocument = [
                       {
                         "type": "dbModel.shape.DBTable",
                         "id": "3253ff2a-a920-09d5-f033-ca759a778e19",
-                        "x": 295,
-                        "y": 59,
+                        "x": 280,
+                        "y": 90,
                         "width": 98,
                         "height": 151.53125,
                         "userData": null,
@@ -119,8 +119,8 @@ var jsonDocument = [
                       {
                         "type": "dbModel.shape.DBTable",
                         "id": "2810494b-931f-da59-fd9d-6deba4385fe0",
-                        "x": 540,
-                        "y": 85,
+                        "x": 560,
+                        "y": 50,
                         "width": 98,
                         "height": 81.265625,
                         "userData": null,
@@ -141,11 +141,6 @@ var jsonDocument = [
                         		"type": "draw2d_OutputPort",
                         		"name": "output0",
                         		"position": "default"
-                        	},
-                        	{
-                        		"type": "draw2d_HybridPort",
-                        		"name": "hybrid0",
-                        		"position": "top"
                         	}
                         ],
                         "attributes": [
@@ -163,13 +158,13 @@ var jsonDocument = [
                       {
                         "type": "dbModel.shape.TableConnection",
                         "id": "f8735797-cf1d-8431-d891-c2d10f0a67be",
-                        "name": "Connection t1 t2",
-                        "userData": null,
+                        "name": "Connection Usage_Logiciel",
+                        "userData": {"isPrimary": false, "useDecorators": true},
                         "cssClass": "draw2d_Connection",
                         "stroke": 2,
                         "color": "#5BCAFF",
                         "policy": "draw2d.policy.line.LineSelectionFeedbackPolicy",
-                        "router": "draw2d.layout.connection.ManhattanConnectionRouter",
+                        "router": "draw2d.layout.connection.InteractiveManhattanConnectionRouter",
                         "source": {
                           "node": "3253ff2a-a920-09d5-f033-ca759a778e19",
                           "port": "output1"
@@ -182,12 +177,12 @@ var jsonDocument = [
                       {
                         "type": "dbModel.shape.TableConnection",
                         "id": "abf0a3d6-c4d0-a4d4-569c-094083429e70",
-                        "name": "Connection t2 t3",
-                        "userData": null,
+                        "name": "Connection Enterprise_Usage",
+                        "userData": {"isPrimary": false, "useDecorators": false},
                         "cssClass": "draw2d_Connection",
                         "stroke": 2,
                         "color": "#5BCAFF",
-                        "policy": "draw2d.policy.line.LineSelectionFeedbackPolicy",
+                        "policy": "draw2d.policy.line.OrthogonalSelectionFeedbackPolicy",
                         "router": "draw2d.layout.connection.InteractiveManhattanConnectionRouter",
                         "source": {
                           "node": "63c0f27a-716e-804c-6873-cd99b945b63f",
@@ -195,6 +190,25 @@ var jsonDocument = [
                         },
                         "target": {
                           "node": "3253ff2a-a920-09d5-f033-ca759a778e19",
+                          "port": "input0"
+                        }
+                      },
+                      {
+                        "type": "dbModel.shape.TableConnection",
+                        "id": "f8735797-cf1d-8431-d891-c2d10f0a67be",
+                        "name": "Auto",
+                        "userData": {"isPrimary": false, "useDecorators": true},
+                        "cssClass": "draw2d_Connection",
+                        "stroke": 2,
+                        "color": "#5BCAFF",
+                        "policy": "draw2d.policy.line.LineSelectionFeedbackPolicy",
+                        "router": "draw2d.layout.connection.InteractiveManhattanConnectionRouter",
+                        "source": {
+                          "node": "63c0f27a-716e-804c-6873-cd99b945b63f",
+                          "port": "hybrid0"
+                        },
+                        "target": {
+                          "node": "63c0f27a-716e-804c-6873-cd99b945b63f",
                           "port": "input0"
                         }
                       }
