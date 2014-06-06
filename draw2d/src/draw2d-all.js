@@ -26,6 +26,7 @@ var draw2d =
 
     shape : {
     	basic:{},
+        composite:{},
         arrow:{},
         node: {},
         note: {},
@@ -1108,18 +1109,17 @@ draw2d.util.ArrayList = Class.extend({
      * @param {Number} index the insert position.
      * 
      * @return {draw2d.util.ArrayList} self
-    */
+     */
      insertElementAt:function(obj, index) 
      {
-        if (this.size == this.capacity) 
-        {
+        if (this.size == this.capacity){
            this.resize();
         }
         
-        for (var i=this.getSize(); i > index; i--) 
-        {
+        for (var i=this.getSize(); i > index; i--){
            this.data[i] = this.data[i-1];
         }
+        
         this.data[index] = obj;
         this.size++;
         
@@ -1128,7 +1128,7 @@ draw2d.util.ArrayList = Class.extend({
 
     /**
      * @method
-     * removes an element at a specific index.
+     * Removes an element at a specific index.
      *
      * @param {Number} index the index of the element to remove
      * @return {Object} the removed object
@@ -1241,58 +1241,73 @@ draw2d.util.ArrayList = Class.extend({
     
      /**
       * @method
-      * Sorts the collection based on a field name - f
+      * Sorts the collection based on a field name or sort a function. See on http://www.w3schools.com/jsref/jsref_sort.asp
+      * if you use a sort function.
       * 
-      * @param {String} the fieldname for the sorting
+      * @param {String|Function} f the field name for the sorting or a sort function
       * 
       * @return {draw2d.util.ArrayList} self
       */
      sort:function(f) 
      {
-        var i, j;
-        var currentValue;
-        var currentObj;
-        var compareObj;
-        var compareValue;
-    
-        for(i=1; i<this.getSize();i++) 
-        {
-           currentObj = this.data[i];
-           currentValue = currentObj[f];
-    
-           j= i-1;
-           compareObj = this.data[j];
-           compareValue = compareObj[f];
-    
-           while(j >=0 && compareValue > currentValue) 
-           {
-              this.data[j+1] = this.data[j];
-              j--;
-              if (j >=0) {
-                       compareObj = this.data[j];
-                       compareValue = compareObj[f];
-              }
-           }
-           this.data[j+1] = currentObj;
+         if(typeof f ==="function"){
+             this.trimToSize();
+             this.data.sort(f);
+         }
+         else{
+             var i, j;
+             var currentValue;
+             var currentObj;
+             var compareObj;
+             var compareValue;
+             
+             for(i=1; i<this.getSize();i++) 
+             {
+                 currentObj = this.data[i];
+                 currentValue = currentObj[f];
+                 
+                 j= i-1;
+                 compareObj = this.data[j];
+                 compareValue = compareObj[f];
+                 
+                 while(j >=0 && compareValue > currentValue) 
+                 {
+                     this.data[j+1] = this.data[j];
+                     j--;
+                     if (j >=0) {
+                         compareObj = this.data[j];
+                         compareValue = compareObj[f];
+                     }
+                 }
+                 this.data[j+1] = currentObj;
+             }
         }
-        
         return this;
      },
     
      /** 
       * @method
-      * copies the contents of a Vector to another Vector returning the new Vector.
+      * Copies the contents of a Vector to another Vector returning the new Vector.
       * 
+      * @param {boolean} [deep] call "clone" of each elements and add the clone to the new ArrayList 
       * @returns {draw2d.util.ArrayList} the new ArrayList
       */
-     clone:function() 
+     clone:function(deep) 
      {
         var newVector = new draw2d.util.ArrayList();
     
-        for (var i=0; i<this.size; i++) {
-           newVector.add(this.data[i]);
+
+        if (deep) {
+            for ( var i = 0; i < this.size; i++) {
+                newVector.add(this.data[i].clone());
+            }
         }
-    
+        else {
+            for ( var i = 0; i < this.size; i++) {
+                newVector.add(this.data[i]);
+            }
+        }
+
         return newVector;
      },
     
@@ -2469,9 +2484,7 @@ draw2d.geo.Rectangle = draw2d.geo.Point.extend({
      *    __|___|__
      *    6 | 5 | 4
      *
-     * @param r1
      * @param r2
-
      * @returns {Number}
      */
     determineOctant: function( r2){
@@ -2637,7 +2650,31 @@ draw2d.geo.Rectangle = draw2d.geo.Point.extend({
     	       && rect.hitTest(this.getBottomLeft()) 
     	       && rect.hitTest(this.getBottomRight());
     },
-    
+
+    /**
+     * @method
+     * return true if the this rectangle contains the hand over rectangle.
+     * 
+     *
+     * @param {draw2d.geo.Rectangle} rect
+     * @returns {Boolean}
+     * @since 4.7.2
+     */
+    contains : function ( rect)
+    {
+        return    this.hitTest(rect.getTopLeft()) 
+               && this.hitTest(rect.getTopRight())
+               && this.hitTest(rect.getBottomLeft()) 
+               && this.hitTest(rect.getBottomRight());
+    },
+ 
+    /**
+     * @method
+     * checks whenever the rectangles has an intersection.
+     * 
+     * @param rect
+     * @returns {Boolean}
+     */
     intersects: function (rect)
     {
         x11 = rect.x,
@@ -2653,6 +2690,48 @@ draw2d.geo.Rectangle = draw2d.geo.Point.extend({
         y_overlap = Math.max(0, Math.min(y12,y22) - Math.max(y11,y21));
  
         return x_overlap*y_overlap!==0;
+    },
+    
+    /**
+     * @method
+     * Merge this rectangle with the given one.
+     * 
+     * @param {draw2d.geo.Rectangle} rect
+     * @since 4.8.0
+     */
+    merge: function(rect){
+        var r= Math.max(rect.getRight(), this.getRight());
+        var b = Math.max(rect.getBottom(), this.getBottom());
+ 
+        this.setPosition(Math.min(this.x,rect.x),Math.min(this.y,rect.y));
+
+        this.w =r-this.x;
+        this.h = b-this.y;
+        
+        return this;
+    },
+    
+    /**
+     * returns the intersection points with the given line if any exists
+     * 
+     * @param {draw2d.geo.Point} start
+     * @param {draw2d.geo.Point} end
+     */
+    intersectionWithLine: function(start, end){
+        var result = new draw2d.util.ArrayList();
+        var v = this.getVertices();
+        v.add(v.first());
+        var p1 = v.first();
+        var p2 = null;
+        for(var i=1; i<5;i++){
+            p2 = v.get(i);
+            p1 = draw2d.shape.basic.Line.intersection(start,end,p1,p2);
+            if(p1!==null){
+                result.add(p1);
+            }
+            p1 = p2;
+        }
+        return result;
     },
     
     toJSON : function(){
@@ -2712,7 +2791,6 @@ draw2d.geo.Ray = draw2d.geo.Point.extend({
     }
 
 });
-
 /*****************************************
  *   Library is under GPL License (GPL)
  *   Copyright (c) 2012 Andreas Herz
@@ -3062,6 +3140,8 @@ draw2d.command.CommandStack = Class.extend({
     setUndoLimit:function( count)
     {
       this.maxundo = count;
+      
+      return this;
     },
     
     /**
@@ -3077,6 +3157,8 @@ draw2d.command.CommandStack = Class.extend({
 
        // fire an empty command to inform all listener that the stack has been changed
        this.notifyListeners(new draw2d.command.Command(), draw2d.command.CommandStack.POST_EXECUTE);
+       
+       return this;
     },
     
     /**
@@ -3131,6 +3213,8 @@ draw2d.command.CommandStack = Class.extend({
        this.notifyListeners(command, draw2d.command.CommandStack.POST_EXECUTE);
        
 //       window.history.pushState({length: this.undostack.length}, "title 1", "?undo="+this.undostack.length);
+       
+       return this;
     },
     
     /**
@@ -3144,6 +3228,8 @@ draw2d.command.CommandStack = Class.extend({
      */
     startTransaction: function(commandLabel){
         this.transactionCommand = new draw2d.command.CommandCollection(commandLabel);
+        
+        return this;
     },
     
     /**
@@ -3161,6 +3247,8 @@ draw2d.command.CommandStack = Class.extend({
         var cmd = this.transactionCommand;
         this.transactionCommand =null;
         this.execute(cmd);
+        
+        return this;
     },
     
     /**
@@ -3178,6 +3266,8 @@ draw2d.command.CommandStack = Class.extend({
           command.undo();
           this.notifyListeners(command, draw2d.command.CommandStack.POST_UNDO);
        }
+       
+       return this;
     },
     
     /** 
@@ -3196,6 +3286,8 @@ draw2d.command.CommandStack = Class.extend({
           command.redo();
           this.notifyListeners(command, draw2d.command.CommandStack.POST_REDO);
        }
+       
+       return this;
     },
     
     /**
@@ -3282,6 +3374,8 @@ draw2d.command.CommandStack = Class.extend({
         else{
           throw "Object doesn't implement required callback interface [draw2d.command.CommandStackListener]";
         }
+        
+        return this;
     },
     
     /**
@@ -3299,6 +3393,8 @@ draw2d.command.CommandStack = Class.extend({
                 return;
             }
          }
+        
+        return this;
     },
         
     /**
@@ -3314,8 +3410,10 @@ draw2d.command.CommandStack = Class.extend({
     {
       var event = new draw2d.command.CommandStackEvent(this, command, state);
       var size = this.eventListeners.getSize();
-      for (var i = 0; i < size; i++)
+      
+      for (var i = 0; i < size; i++){
          this.eventListeners.get(i).stackChanged(event);
+      }
     }
 });
 
@@ -3959,6 +4057,97 @@ draw2d.command.CommandResize = draw2d.command.Command.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
+ * @class draw2d.command.CommandRotate
+ * 
+ * Set the rotation angle of the given figure
+ *
+ * @since 4.4.1
+ * @inheritable
+ * @author Andreas Herz
+ * @extends draw2d.command.Command
+ */
+draw2d.command.CommandRotate = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandRotate", 
+
+    /**
+     * @constructor
+     * Create a new resize Command objects which can be execute via the CommandStack.
+     *
+     * @param {draw2d.Figure} figure the figure to resize
+     * @param {Number} [width] the current width
+     * @param {Number} [height] the current height
+     */
+    init : function(figure, angle)
+    {
+        this._super(draw2d.Configuration.i18n.command.rotateShape);
+        this.figure = figure;
+        
+        this.oldAngle = figure.getRotationAngle();
+        this.newAngle = angle;
+    },
+  
+ 
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modify the model. A CommandMove with [startX,startX] == [endX,endY] should
+     * return false. <br>
+     * the execution of the Command doesn't modify the model.
+     *
+     * @return {boolean}
+     **/
+    canExecute:function()
+    {
+      // return false if we doesn't modify the model => NOP Command
+      return this.oldAngle!=this.newAngle;
+    },
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+       this.redo();
+    },
+    
+    /**
+     * @method
+     * Undo the command
+     *
+     **/
+    undo:function()
+    {
+        this.rotate(this.oldAngle);
+    },
+    
+    /**
+     * @method
+     * Redo the command after the user has undo this command
+     *
+     **/
+    redo:function(angle)
+    {
+        this.rotate(this.newAngle)
+    },
+    
+    rotate:function(angle){
+        var w = this.figure.getWidth();
+        var h = this.figure.getHeight();
+        
+        this.figure.setRotationAngle(angle);
+
+        this.figure.setDimension(h,w);
+        
+        this.figure.portRelayoutRequired=true;
+    }
+});
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
  * @class draw2d.command.CommandConnect
  * 
  * Connects two ports with a connection.
@@ -4214,14 +4403,16 @@ draw2d.command.CommandDelete = draw2d.command.Command.extend({
     undo:function()
     {
         this.canvas.addFigure(this.figure);
-        if(this.figure instanceof draw2d.Connection)
+        if(this.figure instanceof draw2d.Connection){
            this.figure.reconnect();
+        }
     
         this.canvas.setCurrentSelection(this.figure);
-        if(this.parent!==null)
+        if(this.parent!==null){
           this.parent.addChild(this.figure);
-        for (var i = 0; i < this.connections.getSize(); ++i)
-        {
+        }
+        
+        for (var i = 0; i < this.connections.getSize(); ++i){
            this.canvas.addFigure(this.connections.get(i));
            this.connections.get(i).reconnect();
         }
@@ -4239,24 +4430,27 @@ draw2d.command.CommandDelete = draw2d.command.Command.extend({
         {
           this.connections = new draw2d.util.ArrayList();
           var ports = this.figure.getPorts();
-          for(var i=0; i<ports.getSize(); i++)
+          var p_size = ports.getSize();
+          for(var i=0; i<p_size; i++)
           {
-            var port = ports.get(i);
+            var p_conns = ports.get(i).getConnections();
             // Do NOT add twice the same connection if it is linking ports from the same node
-            for (var c = 0, c_size = port.getConnections().getSize() ; c< c_size ; c++)
+            for (var c = 0, c_size = p_conns.getSize() ; c< c_size ; c++)
             {
-                if(!this.connections.contains(port.getConnections().get(c)))
+                var conn =p_conns.get(c);
+                if(!this.connections.contains(conn))
                 {
-                  this.connections.add(port.getConnections().get(c));
+                  this.connections.add(conn);
                 }
             }
           }
-          for(var i=0; i<ports.getSize(); i++)
+          for(var i=0; i<p_size; i++)
           {
-            var port = ports.get(i);
-            port.setCanvas(null);
+            ports.get(i).setCanvas(null);
           }
         }
+        if(this.figure instanceof draw2d.Connection)
+            this.figure.disconnect();
         this.canvas.removeFigure(this.figure);
     
        if(this.connections===null)
@@ -4333,6 +4527,188 @@ draw2d.command.CommandAdd = draw2d.command.Command.extend({
         this.canvas.removeFigure(this.figure);
     }
     
+});
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.command.CommandGroup
+ * Command to group a given set of figures
+ * 
+ * @extends draw2d.command.Command
+ */
+draw2d.command.CommandGroup = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandGroup", 
+    
+    /**
+     * @constructor
+     * Create a group command for the given figure.
+     * 
+     * @param {draw2d.util.ArrayList} figures the figures to group
+     */
+    init: function(canvas,  figures)
+    {
+       this._super(draw2d.Configuration.i18n.command.groupShapes);
+       if(figures instanceof draw2d.Selection){
+           this.figures = figures.getAll();
+       }
+       else{
+           this.figures   = figures;
+       }
+       
+       // figures which already part of an non "Group" composite are removed from the set.
+       // It is not possible to assign a figure to two different composite
+       //
+       this.figures.grep(function(figure){
+           return figure.getComposite()===null;
+       });
+       
+       this.canvas = canvas;
+       this.group = new draw2d.shape.composite.Group();
+    },
+    
+    
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modifies the model. e.g.: a CommandMove with [startX,startX] == [endX,endY] should
+     * return false. The execution of this Command doesn't modify the model.
+     *
+     * @return {boolean} return try if the command modify the model or make any relevant changes
+     **/
+    canExecute:function()
+    {
+      return !this.figures.isEmpty();
+    },
+    
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+       this.redo();
+    },
+    
+    /**
+     * @method
+     * Undo the command
+     *
+     **/
+    undo:function()
+    {
+        this.figures.each($.proxy(function(i,figure){
+            this.group.unassignFigure(figure);
+        },this));
+        
+        this.canvas.removeFigure(this.group);
+        this.canvas.setCurrentSelection(this.figures);
+    },
+    
+    /** 
+     * @method
+     * Redo the command after the user has undo this command
+     *
+     **/
+    redo:function()
+    {
+        this.figures.each($.proxy(function(i,figure){
+            this.group.assignFigure(figure);
+        },this));
+        
+        this.canvas.addFigure(this.group);
+        this.canvas.setCurrentSelection(this.group);
+    }
+});
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.command.CommandUngroup
+ * Command to ungroup a given group figures
+ * 
+ * @extends draw2d.command.Command
+ */
+draw2d.command.CommandUngroup = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandUngroup", 
+   
+    /**
+     * @constructor
+     * Create a group command for the given figure.
+     * 
+     * @param {draw2d.util.ArrayList} figures the figures to group
+     */
+    init: function(canvas,  group)
+    {
+       this._super(draw2d.Configuration.i18n.command.ungroupShapes);
+       if(group instanceof draw2d.Selection){
+           this.group = group.getAll().first();
+       }
+       else{
+           this.group   = group;
+       }
+       
+       this.canvas = canvas;
+       this.figures = this.group.getAssignedFigures().clone();
+    },
+    
+    
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modifies the model. e.g.: a CommandMove with [startX,startX] == [endX,endY] should
+     * return false. The execution of this Command doesn't modify the model.
+     *
+     * @return {boolean} return try if the command modify the model or make any relevant changes
+     **/
+    canExecute:function()
+    {
+      return !this.figures.isEmpty();
+    },
+    
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+       this.redo();
+    },
+    
+    /**
+     * @method
+     * Undo the command
+     *
+     **/
+    undo:function()
+    {
+        this.figures.each($.proxy(function(i,figure){
+            this.group.assignFigure(figure);
+        },this));
+        this.canvas.addFigure(this.group);
+        this.canvas.setCurrentSelection(this.group);
+    },
+    
+    /** 
+     * @method
+     * Redo the command after the user has undo this command
+     *
+     **/
+    redo:function()
+    {
+        this.figures.each($.proxy(function(i,figure){
+            this.group.unassignFigure(figure);
+        },this));
+        
+        this.canvas.setCurrentSelection(this.figures);
+        this.canvas.removeFigure(this.group);
+    }
 });
 /*****************************************
  *   Library is under GPL License (GPL)
@@ -4422,7 +4798,204 @@ draw2d.command.CommandAddVertex = draw2d.command.Command.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.command.CommandRemoveVertexPoint
+ * @class draw2d.command.CommandAssignFigure
+ * 
+ * Assign a figure to a compiste
+ *
+ * @author Andreas Herz
+ * 
+ * @extends draw2d.command.Command
+ * @since 4.9.0
+ */
+draw2d.command.CommandAssignFigure = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandAssignFigure", 
+  
+    /**
+     * @constructor
+     * Create a new Command objects which can be execute via the CommandStack.
+     *
+     * @param {draw2d.Figure} figure the figure to assign
+     * @param {draw2d.Figure} composite the composite where the figure should assign
+     */
+    init : function(figure, composite)
+    {
+        this._super(draw2d.Configuration.i18n.command.assignShape);
+        
+        this.figure    = figure;
+        this.composite = composite;
+        this.assignedConnections = new draw2d.util.ArrayList();
+        this.isNode = this.figure instanceof draw2d.shape.node.Node;
+        this.oldBoundingBox = composite.getBoundingBox();
+        this.newBoundingBox = null; // see execute/redo
+   },
+    
+
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modify the model. A CommandMove with [startX,startX] == [endX,endY] should
+     * return false. <br>
+     * the execution of the Command doesn't modify the model.
+     *
+     * @return {boolean}
+     **/
+    canExecute:function()
+    {
+      // return false if we doesn't modify the model => NOP Command
+      return true;
+    },
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+        this.composite.assignFigure(this.figure);
+        this.newBoundingBox = this.composite.getBoundingBox();
+        
+        // get all connections of the shape and check if source/target node
+        // part of the composite. In this case the connection will be part of
+        // the composite as well
+        if(this.isNode===true){
+            var connections = this.figure.getConnections();
+            connections.each($.proxy(function(i, connection){
+                if(connection.getSource().getParent().getComposite()===this.composite && connection.getTarget().getParent().getComposite()===this.composite){
+                    if(connection.getComposite()!==this.composite){
+                        this.assignedConnections.add({oldComposite:connection.getComposite(), connection:connection});
+                        this.composite.assignFigure(connection);
+                    }
+                }
+            },this));
+        }
+    },
+    
+    /**
+     * @method
+     *
+     * Undo the move command
+     *
+     **/
+    undo:function()
+    {
+       this.composite.unassignFigure(this.figure);
+       this.assignedConnections.each($.proxy(function(i, entry){
+           if(entry.oldComposite!==null){
+               entry.oldComposite.assignFigure(entry.connection);
+           }
+           else{
+               entry.connection.getComposite().unassignFigure(entry.connection);
+           }
+       },this));
+       this.composite.stickFigures=true;
+       this.composite.setBoundingBox(this.oldBoundingBox);
+       this.composite.stickFigures=false;
+    },
+    
+    /**
+     * @method
+     * 
+     * Redo the move command after the user has undo this command
+     *
+     **/
+    redo:function()
+    {
+       this.composite.setBoundingBox(this.oldBoundingBox);
+       this.composite.assignFigure(this.figure);
+       this.assignedConnections.each($.proxy(function(i, entry){
+           this.composite.assignFigure(entry.connection);
+       },this));
+    }
+});
+
+
+
+
+
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.command.CommandBoundingBox
+ * Set the bounding box of a figure with undo/redo support
+ *
+ * @inheritable
+ * @author Andreas Herz
+ * @extends draw2d.command.Command
+ */
+draw2d.command.CommandBoundingBox = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandResize", 
+
+    /**
+     * @constructor
+     * Create a new resize Command objects which can be execute via the CommandStack.
+     *
+     * @param {draw2d.Figure} figure the figure to resize
+     * @param {draw2d.geo.Rectangle} boundingBox the new bounding box of the figure
+     */
+    init : function(figure, boundingBox)
+    {
+        this._super(draw2d.Configuration.i18n.command.resizeShape);
+        this.figure = figure;
+        this.oldBoundingBox = this.figure.getBoundingBox();
+        this.newBoundingBox = boundingBox;
+    },
+  
+
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modify the model. A CommandMove with [startX,startX] == [endX,endY] should
+     * return false. <br>
+     * the execution of the Command doesn't modify the model.
+     *
+     * @return {boolean}
+     **/
+    canExecute:function()
+    {
+      // return false if we doesn't modify the model => NOP Command
+      return !this.oldBoundingBox.equals(this.newBoundingBox);
+    },
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+       this.redo();
+    },
+    
+    /**
+     * @method
+     * Undo the command
+     *
+     **/
+    undo:function()
+    {
+       this.figure.setBoundingBox(this.oldBoundingBox);
+    },
+    
+    /**
+     * @method
+     * Redo the command after the user has undo this command
+     *
+     **/
+    redo:function()
+    {
+        this.figure.setBoundingBox(this.newBoundingBox);
+    }
+});
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.command.CommandRemoveVertex
  * 
  * Remove a vertex from a polyline or polygon
  *
@@ -4500,7 +5073,88 @@ draw2d.command.CommandRemoveVertex = draw2d.command.Command.extend({
     	this.line.removeVertexAt(this.index);
     }
 });
-
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.command.CommandReplaceVertices
+ * 
+ * Replace the vertices of a polyline.
+ *
+ * @inheritable
+ * @author Andreas Herz
+ * 
+ * @extends draw2d.command.Command
+ */
+draw2d.command.CommandReplaceVertices = draw2d.command.Command.extend({
+    NAME : "draw2d.command.CommandReplaceVertices", 
+  
+    /**
+     * @constructor
+     * Create a new Command objects which add a segment to a PolyLine / Polygon.
+     *
+     * @param {draw2d.shape.basic.PolyLine} line the related line
+     * @param {draw2d.util.ArrayList} originalVertices the original vertices of the polyline
+     * @param {draw2d.util.ArrayList} newVertices the new vertices of the polyline
+     */
+    init : function(line, originalVertices, newVertices)
+    {
+        this._super(draw2d.Configuration.i18n.command.addSegment);
+        
+        this.line = line;
+        this.originalVertices = originalVertices;
+        this.newVertices = newVertices;
+    },
+    
+  
+    /**
+     * @method
+     * Returns [true] if the command can be execute and the execution of the
+     * command modify the model. A CommandMove with [startX,startX] == [endX,endY] should
+     * return false. <br>
+     * the execution of the Command doesn't modify the model.
+     *
+     * @return {boolean}
+     **/
+    canExecute:function()
+    {
+      // return false if we doesn't modify the model => NOP Command
+      return true;
+    },
+    
+    /**
+     * @method
+     * Execute the command the first time
+     * 
+     **/
+    execute:function()
+    {
+       this.redo();
+    },
+    
+    /**
+     * @method
+     *
+     * Undo the move command
+     *
+     **/
+    undo:function()
+    {
+        this.line.setVertices(this.originalVertices);
+    },
+    
+    /**
+     * @method
+     * 
+     * Redo the move command after the user has undo this command
+     *
+     **/
+    redo:function()
+    {
+        this.line.setVertices(this.newVertices);
+    }
+});
 /*****************************************
  *   Library is under GPL License (GPL)
  *   Copyright (c) 2012 Andreas Herz
@@ -4612,6 +5266,29 @@ draw2d.layout.connection.ConnectionRouter = Class.extend({
         
     },
     
+    /**
+     * @method
+     * Callback method for the PolyLine or Connection to check if it possible to remove a vertex from
+     * the list. The router can send an veto for this.
+     * Per default it is not possible to remove any vertex from the PolyLine exceptional if any interactive
+     * router is installed.
+     * 
+     * @param index
+     * @since 4.2.3
+     */
+    canRemoveVertexAt: function(index){
+        return false;
+    },
+    
+    /**
+     * Callback method for the PolyLine or Connection to verify that a segment is deletable.
+     * @param index
+     * @returns {Boolean}
+     * @since 4.2.3
+     */
+    canRemoveSegmentAt: function(index){
+        return false;
+    },
     
     /**
      * @method 
@@ -4847,6 +5524,49 @@ draw2d.layout.connection.VertexRouter = draw2d.layout.connection.ConnectionRoute
     },
     
     /**
+     * @method
+     * Callback method for the PolyLine or Connection to check if it possible to remove a vertex from
+     * the list. The router can send an veto for this.
+     * Per default it is not possible to remove any vertex from the PolyLine exceptional if any interactive
+     * router is installed.
+     * 
+     * @param index
+     * @since 4.2.3
+     */
+    canRemoveVertexAt: function(conn, index){
+
+        var count= conn.getVertices().getSize();
+
+        return false;
+    },
+    
+    /**
+     * Callback method for the PolyLine or Connection to verify that a segment is deletable.
+     * @param index
+     * @returns {Boolean}
+     * @since 4.2.3
+     */
+    canRemoveSegmentAt: function(conn, index){
+
+       var segmentCount= conn.getVertices().getSize()-1; // segmentCount is one less than vertex count
+        
+       // The first and last segment isn't deletable
+       //
+       if( (index<=0) || (index>= segmentCount)){
+          return false;
+       }
+
+       // a connection need at least one strokes
+       //
+       if(segmentCount<2){
+          return false;
+       }
+
+       return true;
+    },
+
+
+    /**
      * @method 
      * Tweak or enrich the polyline persistence data with routing information
      * 
@@ -5014,7 +5734,7 @@ draw2d.layout.connection.ManhattanConnectionRouter = draw2d.layout.connection.Co
 	
 	   if (((xDiff * xDiff) < (this.TOLxTOL)) && ((yDiff * yDiff) < (this.TOLxTOL))) 
 	   {
-	      conn.addPoint(new draw2d.geo.Point(toPt.x, toPt.y));
+          conn.addPoint(new draw2d.geo.Point(toPt.x, toPt.y));
 	      return;
 	   }
 	
@@ -5289,6 +6009,8 @@ draw2d.layout.connection.ManhattanBridgedConnectionRouter = draw2d.layout.connec
  ****************************************/
 /**
  * @class draw2d.layout.connection.InteractiveManhattanConnectionRouter
+ * Route the connection in an Manhattan style and add resize handles to all vertex for interactive alignment of the
+ * routing.
  * 
  * 
  * @author Andreas Herz
@@ -5440,7 +6162,7 @@ draw2d.layout.connection.InteractiveManhattanConnectionRouter = draw2d.layout.co
 	       }
 	    }
         //////////////////////////////////////////////////////////////////
-	    // the TARGET port ( labeled with p0) has been moved
+	    // the TARGET port ( labeled with p0) has moved
 	    //
 	    if(!toPt.equals(oldVertices.get(vertexCount-1))){
             var p1 = oldVertices.get(vertexCount-2);
@@ -5496,6 +6218,114 @@ draw2d.layout.connection.InteractiveManhattanConnectionRouter = draw2d.layout.co
 	},
 	
     /**
+     * Callback method for the PolyLine or Connection to verify that a segment is deletable.
+     * @param index
+     * @returns {Boolean}
+     * @since 4.2.3
+     */
+    canRemoveSegmentAt: function(conn, index){
+
+       var segmentCount= conn.getVertices().getSize()-1; // segmentCount is one less than vertex count
+        
+	   // The first and last segment isn't deletable
+	   //
+	   if( (index<=0) || (index>= segmentCount)){
+	      return false;
+	   }
+
+       // a connection need at least three strokes
+       //
+       if(segmentCount<4){
+          return false;
+       }
+
+       var fromPt  = conn.getStartPoint();
+       var fromDir = conn.getSource().getConnectionDirection(conn, conn.getTarget());
+
+       var toPt    = conn.getEndPoint();
+       var toDir   = conn.getTarget().getConnectionDirection(conn, conn.getSource());
+
+       if(segmentCount<=5){
+    	   //     ___
+    	   //    |   |      From
+    	   //    | 1 |-----+
+    	   //    |___|     |
+    	   //              |
+    	   //   +----------+
+    	   //   |
+    	   //   |    ___
+    	   //   |   |   |
+    	   //   +---| 2 |    To
+    	   //       |___|
+    	   // the connection needs at least 5 segments if the routing is like this above
+           //
+    	   if( (fromDir === draw2d.geo.Rectangle.DIRECTION_RIGHT) && ( toDir === draw2d.geo.Rectangle.DIRECTION_LEFT) && (fromPt.x >= toPt.x)){
+    	      return false;
+    	   }
+    
+    
+           //     ___
+           //    |   |        To
+           //    | 2 |-----+
+           //    |___|     |
+           //              |
+           //   +----------+
+           //   |
+           //   |    ___
+           //   |   |   |
+           //   +---| 1 |    From
+           //       |___|
+    	   //
+    	   if( (fromDir == draw2d.geo.Rectangle.DIRECTION_LEFT) & ( toDir == draw2d.geo.Rectangle.DIRECTION_RIGHT) && (fromPt.x <= toPt.x)){
+    	      return false;
+    	   }
+    	   
+           //                          ___
+    	   //      +_______           |   |
+           //      | from  |          | 2 |
+           //     _+_      |          |___| 
+           //    |   |     |       To   +
+           //    | 1 |     |____________|
+           //    |___|     
+            //
+           if( (fromDir == draw2d.geo.Rectangle.DIRECTION_UP) & ( toDir == draw2d.geo.Rectangle.DIRECTION_DOWN) && (fromPt.y <= toPt.y)){
+              return false;
+           }
+    
+           //                          ___
+           //      +_______           |   |
+           //      | to    |          | 1 |
+           //     _+_      |          |___| 
+           //    |   |     |     from   +
+           //    | 2 |     |____________|
+           //    |___|     
+            //
+           if( (fromDir == draw2d.geo.Rectangle.DIRECTION_DOWN) & ( toDir == draw2d.geo.Rectangle.DIRECTION_UP) && (fromPt.y >= toPt.y)){
+              return false;
+           }
+           
+           // unable to make the decision on the easy way. calculate the route again and
+           // check if the segment count of the new routed connection allows a removal
+           //
+           var tmpConn = new draw2d.Connection();
+           tmpConn.lineSegments = new draw2d.util.ArrayList();
+           tmpConn.vertices   = new draw2d.util.ArrayList();
+           tmpConn.sourcePort = conn.sourcePort;
+           tmpConn.targetPort = conn.targetPort;
+           tmpConn._routingMetaData = {routedByUserInteraction:false,fromDir:-1,toDir:-1};
+           this.route(tmpConn, new draw2d.util.ArrayList());
+           var curSegmentCount = conn.getVertices().getSize()-1;
+           var minSegmentCount = tmpConn.getVertices().getSize()-1;
+           if(curSegmentCount<=minSegmentCount){
+               return false;
+           }
+       }
+       
+	   return true;
+	},
+
+
+    /**
      * @method 
      * Tweak or enrich the polyline persistence data with routing information
      * 
@@ -5518,7 +6348,7 @@ draw2d.layout.connection.InteractiveManhattanConnectionRouter = draw2d.layout.co
     
     /**
      * @method 
-     * set the attributes for the polyline with routing information of the intractive mannhattan router.
+     * set the attributes for the polyline with routing information of the interactive manhattan router.
      * 
      * @since 4..0.0
      * @param {Object} memento
@@ -5920,30 +6750,30 @@ draw2d.layout.connection.FanConnectionRouter = draw2d.layout.connection.DirectRo
      */
     route : function(conn, oldVertices)
     {
-        var lines = conn.getSource().getConnections();
-        var connections = new draw2d.util.ArrayList();
-        var index = 0;
-        for ( var i = 0; i < lines.getSize(); i++) 
-        {
-            var figure = lines.get(i);
-            if (figure.getTarget() === conn.getTarget() || figure.getSource() === conn.getTarget()) 
-            {
-                connections.add(figure);
-                if (conn === figure){
-                    index = connections.getSize();
-                }
-            }
-        }
-        if (connections.getSize() > 1){
-            this.routeCollision(conn, index);
+        var lines = conn.getSource().getConnections().clone();
+        lines.grep(function(other){
+            return other.getTarget() === conn.getTarget() || other.getSource() === conn.getTarget();
+        });
+ 
+        if (lines.getSize() > 1){
+            this.routeCollision(conn, lines.indexOf(conn));
         }
         else{
             this._super(conn);
         }
     },
 
-    routeCollision : function(/* :draw2d.Connection */conn, /* :int */index)
+    /**
+     * @method
+     * route the connection if connections overlap. Two connections overlap if the combination 
+     * of source and target anchors are equal.
+     * 
+     * @param {draw2d.Connection} conn
+     * @param {Number} index
+     */
+    routeCollision : function(conn, index)
     {
+        index = index+1;
         var start = conn.getStartPoint();
         var end = conn.getEndPoint();
 
@@ -5980,14 +6810,7 @@ draw2d.layout.connection.FanConnectionRouter = draw2d.layout.connection.DirectRo
 
         // calculate the path string for the SVG rendering
         //
-        var ps = conn.getVertices();
-        var p = ps.get(0);
-        var path = ["M",p.x," ",p.y];
-        for( var i=1;i<ps.getSize();i++){
-              p = ps.get(i);
-              path.push("L", p.x, " ", p.y);
-        }
-        conn.svgPathString = path.join("");
+        this._paint(conn);;
     }
 });
 /*****************************************
@@ -7853,6 +8676,119 @@ draw2d.layout.locator.PolylineMidpointLocator= draw2d.layout.locator.ManhattanMi
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
+ * @class draw2d.layout.locator.ParallelMidpointLocator
+ * 
+ * A ParallelMidpointLocator that is used to place label at the midpoint of a  routed
+ * connection. The midpoint is always in the center of an edge.
+ * The label is aligned to the connection angle.
+ * 
+ *
+ * @author Andreas Herz
+ * @extend draw2d.layout.locator.ConnectionLocator
+ * @since 4.4.4
+ */
+draw2d.layout.locator.ParallelMidpointLocator= draw2d.layout.locator.ConnectionLocator.extend({
+    NAME : "draw2d.layout.locator.ParallelMidpointLocator",
+    
+    /**
+     * @constructor
+     * Constructs a ManhattanMidpointLocator with associated Connection c.
+     * 
+     * if the parameter <b>distanceFromConnection</b> is less than zero the label is
+     * placed above of the connection. Else the label is below the connection.
+     * 
+     * @param {draw2d.Connection} c the connection associated with the locator
+     * @param {Number} distanceFromConnection the distance of the label to the connection.
+     */
+    init: function(c, distanceFromConnection)
+    {
+      this._super(c);
+      
+      if(typeof distanceFromConnection!=="undefined"){
+          this.distanceFromConnection = parseFloat(distanceFromConnection);
+      }
+      else{
+          this.distanceFromConnection = -5;
+      }
+    },
+    
+    
+    /**
+     * @method
+     * Relocates the given Figure always in the center of an edge.
+     *
+     * @param {Number} index child index of the target
+     * @param {draw2d.Figure} target The figure to relocate
+     **/
+    relocate:function(index, target)
+    {
+       var conn = this.getParent();
+       var points = conn.getVertices();
+       
+       var segmentIndex = Math.floor((points.getSize() -2) / 2);
+       if (points.getSize() <= segmentIndex+1)
+          return; 
+    
+       var p1 = points.get(segmentIndex);
+       var p2 = points.get(segmentIndex + 1);
+       
+       // calculate the distance of the label (above or below the connection)
+       var distance = this.distanceFromConnection<=0?this.distanceFromConnection-target.getHeight():this.distanceFromConnection; 
+       
+       // get the angle of the segment
+       var nx =p1.x-p2.x;
+       var ny =p1.y-p2.y;
+       var length = Math.sqrt(nx*nx+ny*ny);
+       var radian = -Math.asin(ny/length);
+       var angle  = (180/Math.PI) * radian;
+       if(radian<0)
+       {
+          if(p2.x<p1.x){
+              radian = Math.abs(radian) + Math.PI;
+              angle = 360-angle;
+              distance = -distance-target.getHeight();
+          }
+          else{
+              radian = Math.PI*2- Math.abs(radian);
+              angle = 360+angle;
+          }
+       }
+       else
+       {
+          if(p2.x<p1.x){
+              radian = Math.PI-radian;
+              angle = 360-angle;
+              distance = -distance-target.getHeight();
+          }
+       }
+       
+       var rotAnchor = this.rotate(length/2-target.getWidth()/2, distance, 0, 0, radian);
+
+       // rotate the x/y coordinate with the calculated angle around "p1"
+       //
+       var rotCenterOfLabel = this.rotate(0,0,target.getWidth()/2, target.getHeight()/2, radian);
+       
+       target.setRotationAngle(angle);
+       target.setPosition(rotAnchor.x-rotCenterOfLabel.x+p1.x,rotAnchor.y-rotCenterOfLabel.y+p1.y);
+   },
+    
+    rotate: function(x, y, xm, ym, radian) {
+        var cos = Math.cos,
+            sin = Math.sin;
+
+            // Subtract midpoints, so that midpoint is translated to origin
+            // and add it in the end again
+            return {x: (x - xm) * cos(radian) - (y - ym) * sin(radian)   + xm,
+                    y: (x - xm) * sin(radian) + (y - ym) * cos(radian)   + ym};
+    }
+
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
  * @class draw2d.layout.locator.TopLocator
  * 
  * A TopLocator  is used to place figures at the top/center of a parent shape.
@@ -8292,13 +9228,12 @@ draw2d.policy.canvas.CanvasPolicy = draw2d.policy.EditPolicy.extend({
      * @template
      */
     onMouseDrag:function(canvas, dx, dy, dx2, dy2){
-        
     },
     
     /**
      * @method
      * 
-     * @param {draw2d.Canvas} canvas
+     * @param {draw2d.Figure} figure the shape below the mouse or null
      * @param {Number} x the x-coordinate of the mouse down event
      * @param {Number} y the y-coordinate of the mouse down event
      * @param {Boolean} shiftKey true if the shift key has been pressed during this event
@@ -8306,10 +9241,25 @@ draw2d.policy.canvas.CanvasPolicy = draw2d.policy.EditPolicy.extend({
      * @template
      */
     onMouseUp: function(figure, x, y, shiftKey, ctrlKey){
-        
     },
     
     
+    /**
+     * @method
+     * Called if the user press the right mouse in the canvas.
+     * 
+     * @param {draw2d.Figure|draw2d.shape.basic.Line} figure the figure below the mouse
+     * @param {Number} x the x-coordinate of the mouse down event
+     * @param {Number} y the y-coordinate of the mouse down event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since 4.4.0
+     */
+    onRightMouseDown: function(figure, x, y, shiftKey, ctrlKey){
+    },
+    
+  
     /**
      * @method
      * Helper method to make an monochrome GIF image WxH pixels big, first create a properly sized array: var pixels = new Array(W*H);. 
@@ -8380,6 +9330,192 @@ draw2d.policy.canvas.CanvasPolicy = draw2d.policy.EditPolicy.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
+ * @class draw2d.policy.canvas.KeyboardPolicy
+ * Default interface for keyboard interaction with the canvas.
+ * 
+ *
+ * @author Andreas Herz
+ * @extends draw2d.policy.canvas.CanvasPolicy
+ */
+draw2d.policy.canvas.KeyboardPolicy = draw2d.policy.canvas.CanvasPolicy.extend({
+
+    NAME : "draw2d.policy.canvas.KeyboardPolicy",
+    
+    /**
+     * @constructor 
+     */
+    init: function(){
+        this._super();
+    },
+    
+    /**
+     * @method
+     * Callback if the user release a key
+     * 
+     * @param {draw2d.Canvas} canvas the related canvas
+     * @param {Number} keyCode the pressed key
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @private
+     **/
+    onKeyUp:function(canvas, keyCode, shiftKey, ctrlKey){
+        // do nothing per default
+    },
+
+    /**
+     * @method
+     * Callback if the user press a key down
+     * 
+     * @param {draw2d.Canvas} canvas the related canvas
+     * @param {Number} keyCode the pressed key
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @private
+     **/
+    onKeyDown:function(canvas, keyCode, shiftKey, ctrlKey){
+        // do nothing per default
+    }
+
+
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.policy.canvas.DefaultKeyboardPolicy
+ * Standard keyboard policy. This is the standard installed keyboard policy.
+ * <br> 
+ * <br>
+ * Keyboard commands
+ * <ul>
+ *    <li>DEL    - delete selection</li>
+ * </ul>
+ *
+ * @author Andreas Herz
+ * @extends draw2d.policy.canvas.KeyboardPolicy
+ */
+draw2d.policy.canvas.DefaultKeyboardPolicy = draw2d.policy.canvas.KeyboardPolicy.extend({
+
+    NAME : "draw2d.policy.canvas.DefaultKeyboardPolicy",
+    
+    /**
+     * @constructor 
+     */
+    init: function(){
+        this._super();
+    },
+    
+    /**
+     * @method
+     * Callback if the user press a key.<br>
+     * This implementation checks only if the <b>DEL</b> has been pressed and creates an
+     * CommandDelete if this happens.
+     * 
+     * @param {draw2d.Canvas} canvas the related canvas
+     * @param {Number} keyCode the pressed key
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @private
+     **/
+    onKeyDown:function(canvas, keyCode, shiftKey, ctrlKey){
+        //
+        if(keyCode===46 && canvas.getCurrentSelection()!==null){
+            // create a single undo/redo transaction if the user delete more than one element. 
+            // This happens with command stack transactions.
+            //
+            canvas.getCommandStack().startTransaction(draw2d.Configuration.i18n.command.deleteShape);
+            canvas.getSelection().each($.proxy(function(index, figure){
+               var cmd = figure.createCommand(new draw2d.command.CommandType(draw2d.command.CommandType.DELETE));
+               if(cmd!==null){
+                   canvas.getCommandStack().execute(cmd);
+               }
+           },this));
+           // execute all single commands at once.
+           canvas.getCommandStack().commitTransaction();
+        }
+        else{
+            this._super(canvas, keyCode, shiftKey, ctrlKey);
+         }
+        
+    }
+
+
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.policy.canvas.ExtendedKeyboardPolicy
+ * Extended keyboard policy to <b>delete</b> and <b>group</b> figures in the canvas. 
+ * <br>
+ * Keyboard commands
+ * <ul>
+ *    <li>DEL    - delete selection</li>
+ *    <li>Ctrl+G - group/ungroup selection</li>
+ *    <li>Ctrl+B - send current selection in the background (toBack)</li>
+ *    <li>Ctrl+F - send current selection in the foreground (toFront)</li>
+ * </ul>
+ *
+ * @author Andreas Herz
+ * @extends draw2d.policy.canvas.KeyboardPolicy
+ */
+draw2d.policy.canvas.ExtendedKeyboardPolicy = draw2d.policy.canvas.KeyboardPolicy.extend({
+
+    NAME : "draw2d.policy.canvas.ExtendedKeyboardPolicy",
+    
+    /**
+     * @constructor 
+     */
+    init: function(){
+        this._super();
+    },
+    
+    /**
+     * @method
+     * Callback if the user press a key
+     * 
+     * @param {draw2d.Canvas} canvas the related canvas
+     * @param {Number} keyCode the pressed key
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @private
+     **/
+    onKeyDown:function(canvas, keyCode, shiftKey, ctrlKey){
+        if(canvas.getCurrentSelection()!==null && ctrlKey ===true){
+            switch(keyCode){
+                
+                case 71: // G
+                    if(canvas.getCurrentSelection() instanceof draw2d.shape.composite.Group && canvas.getSelection().getSize()===1){
+                        canvas.getCommandStack().execute(new draw2d.command.CommandUngroup(canvas, canvas.getCurrentSelection()));
+                    }
+                    else{
+                        canvas.getCommandStack().execute(new draw2d.command.CommandGroup(canvas, canvas.getSelection()));
+                    }
+                    break;
+                case 66: // B
+                    canvas.getCurrentSelection().toBack();
+                    break;
+                case 70: // F 
+                    canvas.getCurrentSelection().toFront();
+            }
+        }
+        else{
+           this._super(canvas, keyCode, shiftKey, ctrlKey);
+        }
+    }
+
+
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
  * @class draw2d.policy.canvas.SelectionPolicy
  * 
  *
@@ -8392,7 +9528,7 @@ draw2d.policy.canvas.SelectionPolicy = draw2d.policy.canvas.CanvasPolicy.extend(
     
     /**
      * @constructor 
-     * Creates a new Router object
+     * Creates a new selection policy
      */
     init: function(){
         this._super();
@@ -8475,6 +9611,16 @@ draw2d.policy.canvas.SingleSelectionPolicy =  draw2d.policy.canvas.SelectionPoli
 
         var figure = canvas.getBestFigure(x, y);
 
+        // may the figure is assigned to a composite. In this case the composite can
+        // override the event receiver
+        while(figure!==null && figure.getComposite() !== null){
+            var delegate = figure.getComposite().delegateSelectionHandling(figure);
+            if(delegate===figure){
+                break;
+            }
+            figure = delegate;
+        }
+        
         // check if the user click on a child shape. DragDrop and movement must redirect
         // to the parent
         // Exception: Port's
@@ -8483,7 +9629,7 @@ draw2d.policy.canvas.SingleSelectionPolicy =  draw2d.policy.canvas.SelectionPoli
         }
 
         if (figure !== null && figure.isDraggable()) {
-            canDragStart = figure.onDragStart(x - figure.getAbsoluteX(), y - figure.getAbsoluteY());
+            canDragStart = figure.onDragStart(x - figure.getAbsoluteX(), y - figure.getAbsoluteY(), shiftKey, ctrlKey);
             // Element send a veto about the drag&drop operation
             if (canDragStart === false) {
                 this.mouseDraggingElement = null;
@@ -8528,7 +9674,6 @@ draw2d.policy.canvas.SingleSelectionPolicy =  draw2d.policy.canvas.SelectionPoli
      */
     onMouseDrag:function(canvas, dx, dy, dx2, dy2){
         this.mouseMovedDuringMouseDown = true;
-        
         if (this.mouseDraggingElement !== null) {
             // it is only necessary to repaint all connections if we change the layout of any connection
             // This can only happen if we:
@@ -8597,22 +9742,25 @@ draw2d.policy.canvas.SingleSelectionPolicy =  draw2d.policy.canvas.SelectionPoli
      */
     onMouseUp: function(canvas, x, y, shiftKey, ctrlKey){
         if (this.mouseDraggingElement !== null) {
+            canvas.getCommandStack().startTransaction();
+
             var sel =canvas.getSelection().getAll();
             if(!sel.contains(this.mouseDraggingElement)){
-                this.mouseDraggingElement.onDragEnd();
+                this.mouseDraggingElement.onDragEnd( x, y, shiftKey, ctrlKey);
             }
             else{
-                canvas.getCommandStack().startTransaction();
                 canvas.getSelection().getAll().each(function(i,figure){
-                     figure.onDragEnd();
+                     figure.onDragEnd( x, y, shiftKey, ctrlKey);
                 });
-                canvas.getCommandStack().commitTransaction();
             }
-            if(canvas.currentDropTarget!==null){
-                this.mouseDraggingElement.onDrop(canvas.currentDropTarget);
+            if(canvas.currentDropTarget!==null && !this.mouseDraggingElement.isResizeHandle){
+                this.mouseDraggingElement.onDrop(canvas.currentDropTarget, x, y, shiftKey, ctrlKey);
                 canvas.currentDropTarget.onDragLeave(this.mouseDraggingElement);
-                canvas.currentDropTarget = null;
+                canvas.currentDropTarget.onCatch(this.mouseDraggingElement, x, y, shiftKey, ctrlKey);
+               canvas.currentDropTarget = null;
             }
+            canvas.getCommandStack().commitTransaction();
+            
             this.mouseDraggingElement = null;
         }
         
@@ -8738,15 +9886,25 @@ draw2d.policy.canvas.BoundingboxSelectionPolicy =  draw2d.policy.canvas.SingleSe
         // COPY_PARENT
         // this code part is copied from the parent implementation. The main problem is, that 
         // the sequence of unselect/select of elements is broken if we call the base implementation
-        // in this case a wrong of events is fired if we select a figure if alread a figure is selected!
+        // in this case a wrong of events is fired if we select a figure if already a figure is selected!
         // WRONG: selectNewFigure -> unselectOldFigure
-        // RIGHT: unselectOldFigure -> selectNEwFigure
+        // RIGHT: unselectOldFigure -> selectNewFigure
         // To ensure this I must copy the parent code and postpond the event propagation
         //
         this.mouseMovedDuringMouseDown  = false;
         var canDragStart = true;
 
         var figure = canvas.getBestFigure(x, y);
+
+        // may the figure is assigned to a composite. In this case the composite can
+        // override the event receiver
+        while(figure!==null && figure.getComposite() !== null){
+            var delegate = figure.getComposite().delegateSelectionHandling(figure);
+            if(delegate===figure){
+                break;
+            }
+            figure = delegate;
+        }
 
         // check if the user click on a child shape. DragDrop and movement must redirect
         // to the parent
@@ -8756,7 +9914,7 @@ draw2d.policy.canvas.BoundingboxSelectionPolicy =  draw2d.policy.canvas.SingleSe
         }
 
         if (figure !== null && figure.isDraggable()) {
-            canDragStart = figure.onDragStart(x - figure.getAbsoluteX(), y - figure.getAbsoluteY());
+            canDragStart = figure.onDragStart(x - figure.getAbsoluteX(), y - figure.getAbsoluteY(), shiftKey, ctrlKey);
             // Element send a veto about the drag&drop operation
             if (canDragStart === false) {
                 this.mouseDraggingElement = null;
@@ -8804,7 +9962,7 @@ draw2d.policy.canvas.BoundingboxSelectionPolicy =  draw2d.policy.canvas.SingleSe
      	// drag/drop operation
         currentSelection = canvas.getSelection().getAll();
         currentSelection.each($.proxy(function(i,figure){
-             var canDragStart= figure.onDragStart(figure.getAbsoluteX(),figure.getAbsoluteY());
+             var canDragStart= figure.onDragStart(figure.getAbsoluteX(),figure.getAbsoluteY(), shiftKey, ctrlKey);
              // its a line
              if (figure instanceof draw2d.shape.basic.Line) {
                  
@@ -8859,8 +10017,8 @@ draw2d.policy.canvas.BoundingboxSelectionPolicy =  draw2d.policy.canvas.SingleSe
      * @param {draw2d.Canvas} canvas
      * @param {Number} x the x-coordinate of the mouse down event
      * @param {Number} y the y-coordinate of the mouse down event
-      * @param {Boolean} shiftKey true if the shift key has been pressed during this event
-      * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      */
     onMouseUp:function(canvas, x,y, shiftKey, ctrlKey){
         // delete the current selection if you have clicked in the empty
@@ -8885,15 +10043,15 @@ draw2d.policy.canvas.BoundingboxSelectionPolicy =  draw2d.policy.canvas.SingleSe
                 },this));
             }   
         }
-        this._super(canvas, x,y);
+        this._super(canvas, x,y, shiftKey, ctrlKey);
         
         if (this.boundingBoxFigure1!==null) {
         	// retrieve all figures which are inside the bounding box and select all of them
         	//
         	var selectionRect = this.boundingBoxFigure1.getBoundingBox();
          	canvas.getFigures().each($.proxy(function(i,figure){
-        		if(figure.getBoundingBox().isInside(selectionRect)){
-                    var canDragStart = figure.onDragStart(figure.getAbsoluteX(),figure.getAbsoluteY());
+        		if(figure.isSelectable() === true && figure.getBoundingBox().isInside(selectionRect)){
+                    var canDragStart = figure.onDragStart(figure.getAbsoluteX(),figure.getAbsoluteY(), shiftKey, ctrlKey);
                     if(canDragStart===true){
                         this.select(canvas,figure,false);
                     }
@@ -9967,15 +11125,58 @@ draw2d.policy.canvas.SnapToGeometryEditPolicy = draw2d.policy.canvas.SnapToEditP
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.policy.figure.DragDropEditPolicy
+ * @class draw2d.policy.figure.FigureEditPolicy
  * 
  * Called by the framework if the user edit the position of a figure with a drag drop operation.
  * Sub class like SelectionEditPolicy or RegionEditPolicy cam adjust th e position of the figure or the selections handles.
  * 
  * @author  Andreas Herz
  * @extends draw2d.policy.EditPolicy
+ * @since 4.4.0
  */
-draw2d.policy.figure.DragDropEditPolicy = draw2d.policy.EditPolicy.extend({
+draw2d.policy.figure.FigureEditPolicy = draw2d.policy.EditPolicy.extend({
+
+    NAME : "draw2d.policy.figure.FigureEditPolicy",
+
+    /**
+     * @constructor 
+     * Creates a new Router object
+     */
+    init: function(){
+        this._super();
+    },
+    
+    /**
+     * @method
+     * Called if the user press the right mouse on the figure.<br>
+     * You can either override the "onContextMenu" method of the figure or install an editor policy and override this method.
+     * Booth is valid and possible.
+     * 
+     * @param {draw2d.Figure|draw2d.shape.basic.Line} figure the figure below the mouse
+     * @param {Number} x the x-coordinate of the mouse down event
+     * @param {Number} y the y-coordinate of the mouse down event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since 4.4.0
+     */
+    onRightMouseDown: function(figure, x, y, shiftKey, ctrlKey){
+    }
+});
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************/
+/**
+ * @class draw2d.policy.figure.DragDropEditPolicy
+ * 
+ * Called by the framework if the user edit the position of a figure with a drag drop operation.
+ * Sub class like SelectionEditPolicy or RegionEditPolicy can adjust the position of the figure or the selections handles.
+ * 
+ * @author  Andreas Herz
+ * @extends draw2d.policy.figure.FigureEditPolicy
+ */
+draw2d.policy.figure.DragDropEditPolicy = draw2d.policy.figure.FigureEditPolicy.extend({
 
     NAME : "draw2d.policy.figure.DragDropEditPolicy",
 
@@ -9995,9 +11196,13 @@ draw2d.policy.figure.DragDropEditPolicy = draw2d.policy.EditPolicy.extend({
      * 
      * @param {draw2d.Canvas} canvas The host canvas
      * @param {draw2d.Figure} figure The related figure
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @template
      */
-    onDragStart: function(canvas, figure){
+    onDragStart: function(canvas, figure, x, y, shiftKey, ctrlKey){
     	figure.shape.attr({cursor:"move"});
     	figure.isMoving = false;
     	figure.originalAlpha = figure.getAlpha();
@@ -10028,9 +11233,13 @@ draw2d.policy.figure.DragDropEditPolicy = draw2d.policy.EditPolicy.extend({
      * 
      * @param {draw2d.Canvas} canvas The host canvas
      * @param {draw2d.Figure} figure The related figure
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @template
      */
-    onDragEnd: function(canvas, figure){
+    onDragEnd: function(canvas, figure, x, y, shiftKey, ctrlKey){
         figure.shape.attr({cursor:"default"});
         figure.isMoving = false;
     },
@@ -10122,15 +11331,27 @@ draw2d.policy.figure.RegionEditPolicy = draw2d.policy.figure.DragDropEditPolicy.
         }
     },
 
+    /**
+     * @method
+     * Update the constraint bounding box for the policy.
+     * 
+     * @param {draw2d.geo.Rectangle} boundingBox the constraint rectangle
+     * @since 4.8.2
+     */
+    setBoundingBox: function(boundingBox){
+      this.constRect = boundingBox;  
+      
+      return this;
+    },
 
     /**
      * @method
-     * Adjust the coordinates to the rectangle/region of this contraint.
+     * Adjust the coordinates to the rectangle/region of this constraint.
      * 
      * @param figure
      * @param {Number|draw2d.geo.Point} x
      * @param {number} [y]
-     * @returns {draw2d.geo.Point} the contraint position of th efigure
+     * @returns {draw2d.geo.Point} the constraint position of the figure
      */
     adjustPosition : function(figure, x, y)
     {
@@ -10143,6 +11364,30 @@ draw2d.policy.figure.RegionEditPolicy = draw2d.policy.figure.DragDropEditPolicy.
         }
         r = this.constRect.moveInside(r);
         return r.getTopLeft();
+    },
+    
+    /**
+     * @method
+     * Adjust the dimension of the rectangle to fit ito the region of the policy
+     * 
+     * @param figure
+     * @param w
+     * @param h
+     * @returns {___anonymous2210_2219}
+     */
+    adjustDimension : function(figure, w, h)
+    {
+        var diffW = (figure.getAbsoluteX()+w)-this.constRect.getRight();
+        var diffH = (figure.getAbsoluteY()+h)-this.constRect.getBottom();
+
+        if(diffW>0){
+            w = w- diffW;
+        }
+        if(diffH>0){
+            h = h- diffH;
+        }
+        
+        return {w:w, h:h};
     }
 });
 /*****************************************
@@ -11447,11 +12692,15 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.LineSe
             
             /**
              * @method
-             * Will be called after a drag and drop action.<br>
+             * Called if a drag&drop operation starts.<br>
+             * @param {Number} x the x-coordinate of the mouse up event
+             * @param {Number} y the y-coordinate of the mouse up event
+             * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+             * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
              *
              * @private
              **/
-            onDragStart : function()
+            onDragStart : function(xs, y, shiftKey, ctrlKey)
             {
                 this._super();
                 this.command = this.getCanvas().getCurrentSelection().createCommand(new draw2d.command.CommandType(draw2d.command.CommandType.MOVE_VERTICES));
@@ -11737,9 +12986,15 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.LineSe
             /**
              * @method Called after a drag and drop action.<br>
              *         Sub classes can override this method to implement additional stuff. Don't forget to call the super implementation via <code>this._super();</code>
+             *         
+             * @param {Number} x the x-coordinate of the mouse event
+             * @param {Number} y the y-coordinate of the mouse event
+             * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+             * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+             * 
              * @return {boolean}
              */
-            onDragEnd : function()
+            onDragEnd : function( x, y, shiftKey, ctrlKey)
             {
                 var stack = this.getCanvas().getCommandStack();
                 
@@ -11787,91 +13042,24 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.LineSe
             connection.selectionHandles.add( handle);         
             handle.setDraggable(connection.isResizeable());
             handle.show(canvas);
-/*
-    		var handle = new draw2d.shape.basic.GhostVertexResizeHandle(connection, i-1);
-            connection.selectionHandles.add( handle);         
-            handle.setDraggable(connection.isResizeable());
-            handle.show(canvas);
-            */
         }
-    	/*
-		var handle = new draw2d.shape.basic.GhostVertexResizeHandle(connection, i-1);
-        connection.selectionHandles.add( handle);         
-        handle.setDraggable(connection.isResizeable());
-        handle.show(canvas);
-        */
     	
         this.moved(canvas, connection);
     },
     
     
-
     /**
      * @method
+     * remove the segment with the given index. 
+     * You must check if it possible to remove the segment before. The method didn'T do any consistency checks.
      * 
+     * @param conn
+     * @param segmentIndex
      */
-    isSegmentDeleteable:function(conn, segmentIndex){
-
-       var segmentCount = conn.getSegments().getSize();
-       
-       // Das erste und das letzte Segment kann nicht geloescht werden
-       //
-       if( (segmentIndex<=0) || (segmentIndex>= segmentCount-2))
-          return false;
-
-       // A Connection needs at least 3 segments
-       //
-       if((segmentCount<=4))
-          return false;
-
-       var fromPt  = conn.getStartPoint();
-       var fromDir = conn.getSource().getConnectionDirection(conn, conn.getTarget());
-
-       var toPt    = conn.getEndPoint();
-       var toDir   = conn.getTarget().getConnectionDirection(conn, conn.getSource());
-
-       // 
-       // Falls die Leitungsfuehrung sich     ___
-       // wie nebenan aufgezeigt aufbaut,    |   |        From
-       // mussen mindestens 5 Segmente er-   | 1 |-----+
-       // halten beleiben, damit ueberhaupt  |___|     |
-       // eine Leitungsfuehrung m??glich ist.           |
-       // Der Ausgang von Objekt 1 ist      +----------+
-       // so zu dem Eingang von 2 versetzt, |
-       // das man nicht mehr mit 3 Segment  |    ___
-       // auskommt.                         |   |   |
-       //                                   +---| 2 |      To
-       //                                       |___|
-       //
-       if( (fromDir === 0) && ( toDir === 180) && (fromPt.x >= toPt.x) && (segmentCount < 6) )
-          return false;
-
-
-       // 
-       // Falls die Leitungsfuehrung sich     ___
-       // wie nebenan aufgezeigt aufbaut,    |   |        To
-       // mussen mindestens 5 Segmente er-   | 2 |-----+
-       // halten beleiben, damit ueberhaupt  |___|     |
-       // eine Leitungsfuehrung m??glich ist.           |
-       // Der Ausgang von Objekt 1 ist      +----------+
-       // so zu dem Eingang von 2 versetzt, |
-       // das man nicht mehr mit 3 Segment  |    ___
-       // auskommt.                         |   |   |
-       //                                   +---| 1 |     From
-       //                                       |___|
-       //
-       if( (fromDir == 180) & ( toDir == 0) && (fromPt.x <= toPt.x) && (NumPoints() < 6) )
-          return false;
-
-       return true;
-    },
-    
     removeSegment: function(conn, segmentIndex){
-
-       if(!this.isSegmentDeleteable(conn, segmentIndex))
-          return;
+       var PADDING = 10;
        
-       var vertexCount  = conn.getVertices().getSize();
+       var segmentCount  = conn.getVertices().getSize()-1;
              
        var fromPt  = conn.getStartPoint();
        var fromDir = conn.getSource().getConnectionDirection(conn, conn.getTarget());
@@ -11892,24 +13080,34 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.LineSe
        // Mitte des geloeschten Segmentes                      newX   .
        //                                                             . p3
        //  
-       if(p1.y == p2.y){
+       if(p1.y === p2.y){
           var newX = (p1.x + p2.x) / 2;
           // Die neue X-Koordinate muss auf jeden Falls zwischen p-1 und p4 liegen
           //
-          if(fromDir == 0 && segmentIndex == 2)
-             newX = Math.max(newX ,fromPt.x);
-          else if(fromDir == 180 && segmentIndex == 2)
-             newX = Math.min(newX ,fromPt.x);
+          if(segmentIndex === 1){
+              if(fromDir===draw2d.geo.Rectangle.DIRECTION_RIGHT){
+                  newX = Math.max(newX ,fromPt.x+PADDING);
+              }
+              else if(fromDir===draw2d.geo.Rectangle.DIRECTION_LEFT){
+                  newX = Math.min(newX ,fromPt.x-PADDING);
+              }
+          }
           
-          if(toDir == 0 && segmentIndex == vertexCount-4)
-             newX = max(newX ,toPt.x);
-          else if(toDir == 180 && segmentIndex == vertexCount-4)
-             newX = Math.min(newX ,toPt.x);
-
+          if(segmentIndex === segmentCount-2){
+              if(toDir===draw2d.geo.Rectangle.DIRECTION_RIGHT){
+                  newX = Math.max(newX ,toPt.x+PADDING);
+              }
+              else if(toDir===draw2d.geo.Rectangle.DIRECTION_LEFT){
+                  newX = Math.min(newX ,toPt.x-PADDING);
+              }
+          }
+          
           conn.setVertex(segmentIndex -1, new draw2d.geo.Point(newX,p0.y));
           conn.setVertex(segmentIndex +2, new draw2d.geo.Point(newX,p3.y));
           
-          conn.removeSegment(segmentIndex);
+          conn.removeVertexAt(segmentIndex);
+          conn.removeVertexAt(segmentIndex);
+          conn._routingMetaData.routedByUserInteraction = true; 
        }
        
        //                                                         p2       p3
@@ -11920,104 +13118,219 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.LineSe
        // Mitte des geloeschten Segmentes              p0       | p1     
        //                                              +........+     
        //   
-       else if(p1.x == p2.x){
-          // Das erste senkrechte Segment wird geloescht
-          // p0 ist der Startpunkt und darf somit nicht verschoben werden
-          //
-          if(fromDir == 0 && segmentIndex == 1)
-             SetPoint(segmentIndex +2, CPoint(p3.x,p1.y));
-          else if(fromDir == 180 && segmentIndex == 1)
-             SetPoint(segmentIndex +2, CPoint(p3.x,p1.y));
-          // Das letzte Segment welche senkrecht ist, wird geloescht
-          // p3 ist der Endpunkt und darf somit nicht verschoben werden
-          //
-          else if(toDir == 0 && segmentIndex == vertexCount-3)
-             SetPoint(segmentIndex -1, CPoint(p0.x,p2.y));
-          else if(toDir == 180 && segmentIndex == vertexCount-3)
-             SetPoint(segmentIndex -1, CPoint(p0.x,p2.y));
-          // Es ist ein Segment in der Mitte
-          // p0 und p3 duerfen somit verschoben werden
-          //
-          else{ 
-             SetPoint(segmentIndex -1, CPoint(p0.x,(p1.y+p2.y)/2));
-             SetPoint(segmentIndex +2, CPoint(p3.x,(p1.y+p2.y)/2));
-          }
-          RemoveSegment(segmentIndex);
-          return;
+       else if(p1.x === p2.x){
+           var newY = (p1.y + p2.y) / 2;
+           // Die neue Y-Koordinate muss auf jeden Falls zwischen p-1 und p4 liegen
+           //
+           if(segmentIndex === 1){
+               if(fromDir===draw2d.geo.Rectangle.DIRECTION_RIGHT){
+                   newY = fromPt.y;
+               }
+               else if(fromDir===draw2d.geo.Rectangle.DIRECTION_LEFT){
+                   newY = fromPt.y;
+               }
+           }
+           
+           if(segmentIndex === segmentCount-2){
+               if(toDir===draw2d.geo.Rectangle.DIRECTION_RIGHT){
+                   newY = toPt.y;
+               }
+               else if(toDir===draw2d.geo.Rectangle.DIRECTION_LEFT){
+                   newY = toPt.y;
+               }
+           }
+           
+           conn.setVertex(segmentIndex -1, new draw2d.geo.Point(p0.x,newY));
+           conn.setVertex(segmentIndex +2, new draw2d.geo.Point(p3.x,newY));
+           
+           conn.removeVertexAt(segmentIndex);
+           conn.removeVertexAt(segmentIndex);
+           conn._routingMetaData.routedByUserInteraction = true; 
        }
     },
     
 
-    splitSegment: function(conn, segmentIndex){
+    /**
+     * @method 
+     * split the segment with the given index and insert a new segment.
+     * 
+     * @param conn
+     * @param segmentIndex
+     */
+    splitSegment: function(conn, segmentIndex, x, y){
+       var segmentCount  = conn.getVertices().getSize()-1;
        var p1 = conn.getVertex(segmentIndex   );
        var p2 = conn.getVertex(segmentIndex +1);
        var length= 40;
 
-       // Das einzufuegende Segment ist horizontal
-       //       p2 +
-       //          .
-       // np1 +----+ np2
-       //     .
-       //     .
-       //     + p1
+       // the selected segment is vertical
        //
        if(p1.x == p2.x){
-          var np1 = new util.geo.Point(p1.x-(length/2), (p1.y + p2.y ) /2);
-          var np2 = new util.geo.Point(p2.x+(length/2), (p1.y + p2.y ) /2);
-
-          conn.setVertex(segmentIndex  , new util.geo.Point(np1.x,p1.y));
-          conn.setVertex(segmentIndex+1, new util.geo.Point(np2.x,p2.y));
-          conn.insertVertexAt(segmentIndex+1, np1);
-          conn.insertVertexAt(segmentIndex+2, np2);
+          conn._routingMetaData.routedByUserInteraction = true; 
+          // edge case of an ManhattanRouter: One segment. This happens if the source/target on the same x - coordinate
+          //
+          if(segmentCount === 1){
+              //     + p1
+              //     |
+              // np1 +-----+ np2
+              //           |
+              //           |
+              // np3 +-----+ np3
+              //     |
+              //     |
+              //     + p2
+              //
+              var newSegLength = (p1.getDistance(p2)/4)/2; 
+              var np1 = new draw2d.geo.Point(p1.x       , y-newSegLength);
+              var np2 = new draw2d.geo.Point(p2.x+length, y-newSegLength);
+              var np3 = new draw2d.geo.Point(p2.x+length, y+newSegLength);
+              var np4 = new draw2d.geo.Point(p2.x       , y+newSegLength);
+    
+              conn.insertVertexAt(segmentIndex+1, np1);
+              conn.insertVertexAt(segmentIndex+2, np2);
+              conn.insertVertexAt(segmentIndex+3, np3);
+              conn.insertVertexAt(segmentIndex+4, np4);
+          }
+          else{
+              //       p2 +
+              //          .
+              // np1 +----+ np2
+              //     .
+              //     .
+              //     + p1
+              var np1 = new draw2d.geo.Point(p1.x-(length/2), y);
+              var np2 = new draw2d.geo.Point(p2.x+(length/2), y);
+    
+              conn.setVertex(segmentIndex  , new draw2d.geo.Point(np1.x,p1.y));
+              conn.setVertex(segmentIndex+1, new draw2d.geo.Point(np2.x,p2.y));
+              conn.insertVertexAt(segmentIndex+1, np1);
+              conn.insertVertexAt(segmentIndex+2, np2);
+          }
        }
-       // Das eizufuegende Segment ist senkrecht
-       //     p1        np1
-       //   +.........+
-       //             |
-       //             |
-       //             | np2       p2
-       //             +.........+
+       // the selected segment is horizontal
        //
        else if(p1.y == p2.y){
-          var np1 = new draw2d.util.Point(0,0);
-          var np2 = new draw2d.util.Point(0,0);
-
-          // p1 ist der Startpunkt und darf somit nicht verschoben werden
+          conn._routingMetaData.routedByUserInteraction = true; 
+          // edge case of an ManhattanRouter: One segment. This happens if the source/target on the same y - coordinate
           //
-          if(m_lastHitSegment==0){
-             np1.x = (p1.x + p2.x ) /2;
-             np1.y = p1.y;
-             np2.x = (p1.x + p2.x ) /2;
-             np2.y = p2.y+length;
-             conn.setVertex(segmentIndex+1, new draw2d.util.Point(p2.x,np2.y));
+          if(segmentCount===1){
+              //     np2 +---------+ np3
+              //         |         |
+              // --------+np1   np4+--------
+              //
+              var newSegLength = (p1.getDistance(p2)/4)/2; 
+              var np1 = new draw2d.geo.Point(x-newSegLength, p1.y);
+              var np2 = new draw2d.geo.Point(x-newSegLength, p1.y-length);
+              var np3 = new draw2d.geo.Point(x+newSegLength, p1.y-length);
+              var np4 = new draw2d.geo.Point(x+newSegLength, p1.y);
+    
+              conn.insertVertexAt(segmentIndex+1, np1);
+              conn.insertVertexAt(segmentIndex+2, np2);
+              conn.insertVertexAt(segmentIndex+3, np3);
+              conn.insertVertexAt(segmentIndex+4, np4);
           }
-          // p2 ist der Schlusspunkt und darf somit nicht veaendert werden
-          //
-          else if(m_lastHitSegment == NumPoints()-2){
-             np1.x = (p1.x + p2.x ) /2;
-             np1.y = p1.y-length;
-             np2.x = (p1.x + p2.x ) /2;
-             np2.y = p2.y;
-             conn.setVertex(segmentIndex  , new draw2d.util.Point(p1.x,np1.y));
+          else{
+              //     p1        np1
+              //   +.........+
+              //             |
+              //             |
+              //             | np2       p2
+              //             +.........+
+              var np1 = new draw2d.geo.Point(0,0);
+              var np2 = new draw2d.geo.Point(0,0);
+              
+              // p1 ist der Startpunkt und darf somit nicht verschoben werden
+              //
+              if(segmentIndex===0){
+                  np1.x = x;
+                  np1.y = p1.y;
+                  np2.x = x;
+                  np2.y = p2.y+length;
+                  conn.setVertex(segmentIndex+1, new draw2d.geo.Point(p2.x,np2.y));
+              }
+              // p2 ist der Schlusspunkt und darf somit nicht veaendert werden
+              //
+              else if(segmentIndex === segmentCount-1){
+                  np1.x = x;
+                  np1.y = p1.y-length;
+                  np2.x = x;
+                  np2.y = p2.y;
+                  conn.setVertex(segmentIndex  , new draw2d.geo.Point(p1.x,np1.y));
+              }
+              else {
+                  np1.x = x;
+                  np1.y = p1.y - (length/2);
+                  np2.x = x;
+                  np2.y = p2.y + (length/2);
+                  conn.setVertex(segmentIndex  , new draw2d.geo.Point(p1.x,np1.y));
+                  conn.setVertex(segmentIndex+1, new draw2d.geo.Point(p2.x,np2.y));
+              }
+              conn.insertVertexAt(segmentIndex+1, np1);
+              conn.insertVertexAt(segmentIndex+2, np2);
           }
-          else {
-             np1.x = (p1.x + p2.x ) /2;
-             np1.y = p1.y - (length/2);
-             np2.x = (p1.x + p2.x ) /2;
-             np2.y = p2.y + (length/2);
-             conn.setVertex(segmentIndex  , new draw2d.util.Point(p1.x,np1.y));
-             conn.setVertex(segmentIndex+1, new draw2d.util.Point(p2.x,np2.y));
-          }
-          conn.insertVertexAt(segmentIndex+1, np1);
-          conn.insertVertexAt(segmentIndex+2, np2);
        }
-
-       // Die Leitungsfuehrung wurde mit Hand veraendert
-       // -> Es darf spaeter kein vollstaendiges Autorouting mehr
-       // gemacht werden.
-       //
-    //   m_routingHasChanged = true;
+    },
+    
+    /**
+     * @method
+     * Called if the user press the right mouse on the figure.<br>
+     * You can either override the "onContextMenu" method of the figure or install an editor policy and override this method.
+     * Booth is valid and possible.
+     * 
+     * @param {draw2d.shape.basic.Line} conn the polyline below the mouse
+     * @param {Number} x the x-coordinate of the mouse down event
+     * @param {Number} y the y-coordinate of the mouse down event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since 4.4.0
+     */
+    onRightMouseDown: function(conn, x, y, shiftKey, ctrlKey){
+        var segment = conn.hitSegment(x,y);
+        var items = {"split":  {name: draw2d.Configuration.i18n.menu.addSegment}};
+        
+        if(segment===null){
+            return;
+        }
+        
+        if(conn.getRouter().canRemoveSegmentAt(conn, segment.index)){
+            items.remove= {name: draw2d.Configuration.i18n.menu.deleteSegment};
+        }
+        
+        $.contextMenu({
+            selector: 'body', 
+            events:
+            {  
+                hide:function(){ $.contextMenu( 'destroy' ); }
+            },
+            callback: $.proxy(function(key, options) 
+            {
+               switch(key){
+               case "remove":
+                   // deep copy of the vertices of the connection for the command stack to avoid side effects
+                   var originalVertices = conn.getVertices().clone(true);
+                   this.removeSegment(conn, segment.index);
+                   var newVertices = conn.getVertices().clone(true);
+                   conn.getCanvas().getCommandStack().execute(new draw2d.command.CommandReplaceVertices(conn, originalVertices, newVertices));
+                   break;
+               case "split":
+                   // deep copy of the vertices of the connection for the command stack to avoid side effects
+                   var originalVertices = conn.getVertices().clone(true);
+                   this.splitSegment(conn, segment.index, x, y);
+                   var newVertices = conn.getVertices().clone(true);
+                   conn.getCanvas().getCommandStack().execute(new draw2d.command.CommandReplaceVertices(conn, originalVertices, newVertices));
+                   break;
+               default:
+                   break;
+               }
+            
+            },this),
+            x:x,
+            y:y,
+            items: items
+        });
     }
+
     
 
 
@@ -12102,9 +13415,13 @@ draw2d.policy.port.ElasticStrapFeedbackPolicy = draw2d.policy.port.PortFeedbackP
      * 
      * @param {draw2d.Canvas} canvas The host canvas
      * @param {draw2d.Figure} figure The related figure
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @template
      */
-    onDragStart: function(canvas, figure){
+    onDragStart: function(canvas, figure, x, y, shiftKey, ctrlKey){
         this.connectionLine = new draw2d.shape.basic.Line();
         this.connectionLine.setCanvas(canvas);
         this.connectionLine.getShapeElement();
@@ -12135,9 +13452,13 @@ draw2d.policy.port.ElasticStrapFeedbackPolicy = draw2d.policy.port.PortFeedbackP
      * 
      * @param {draw2d.Canvas} canvas The host canvas
      * @param {draw2d.Figure} figure The related figure
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @template
      */
-    onDragEnd: function(canvas, figure){
+    onDragEnd: function(canvas, figure, x, y, shiftKey, ctrlKey){
         this.connectionLine.setCanvas(null);
         this.connectionLine = null;
     },
@@ -12191,9 +13512,13 @@ draw2d.policy.port.IntrusivePortsFeedbackPolicy = draw2d.policy.port.PortFeedbac
      * 
      * @param {draw2d.Canvas} canvas The host canvas
      * @param {draw2d.Figure} figure The related figure
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @template
      */
-    onDragStart: function(canvas, figure){
+    onDragStart: function(canvas, figure, x, y, shiftKey, ctrlKey){
         var start = 0;
     	figure.getDropTargets().each(function(i, element){
 	        element.__beforeInflate = element.getWidth();
@@ -12258,7 +13583,7 @@ draw2d.policy.port.IntrusivePortsFeedbackPolicy = draw2d.policy.port.PortFeedbac
      * @param {draw2d.Figure} figure The related figure
      * @template
      */
-    onDragEnd: function(canvas, figure){
+    onDragEnd: function(canvas, figure, x, y, shiftKey, ctrlKey){
         this.tweenable.stop(false);
         this.tweenable = null;
     	figure.getDropTargets().each(function(i, element){
@@ -12290,30 +13615,37 @@ draw2d.policy.port.IntrusivePortsFeedbackPolicy = draw2d.policy.port.PortFeedbac
  *   Library is under GPL License (GPL)
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/draw2d.Configuration = {
-        version : "4.3.2",
-        i18n : {
-            command : {
-                move : "Move Shape",
-                deleteShape  : "Delete Shape",
-                moveShape: "Move Shape",
-                moveLine : "Move Line",
-                addShape : "Add Shape",
-                moveVertex : "Move Vertex",
-                moveVertices : "Move Vertices",
-                deleteVertex : "Delete Vertex",
-                resizeShape : "Resize Shape",
-                collection: "Execute Commands",
-                addVertex: "Add Vertex",
-                connectPorts: "Connect Ports"
-            },
-            dialog:{
-                filenamePrompt: "Enter Filename:"
-            }
+    version : "4.9.1",
+    i18n : {
+        command : {
+            move : "Move Shape",
+            assignShape : "Add Shapes to Composite",
+            groupShapes : "Group Shapes",
+            ungroupShapes : "Ungroup Shapes",
+            deleteShape : "Delete Shape",
+            moveShape : "Move Shape",
+            moveLine : "Move Line",
+            addShape : "Add Shape",
+            moveVertex : "Move Vertex",
+            moveVertices : "Move Vertices",
+            deleteVertex : "Delete Vertex",
+            resizeShape : "Resize Shape",
+            collection : "Execute Commands",
+            addVertex : "Add Vertex",
+            connectPorts : "Connect Ports"
         },
-        color:{
-            resizeHandle : "#5bcaff",
-            vertexHandle : "#5bcaff"
+        menu : {
+            deleteSegment : "Delete Segment",
+            addSegment : "Add Segment"
+        },
+        dialog : {
+            filenamePrompt : "Enter Filename:"
         }
+    },
+    color : {
+        resizeHandle : "#5bcaff",
+        vertexHandle : "#5bcaff"
+    }
 };
 /*****************************************
  *   Library is under GPL License (GPL)
@@ -12401,7 +13733,7 @@ draw2d.Canvas = Class.extend(
                 drop:$.proxy(function(event, ui){
                     event = this._getEvent(event);
                     var pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY);
-                    this.onDrop(ui.draggable, pos.getX(), pos.getY());
+                    this.onDrop(ui.draggable, pos.getX(), pos.getY(), event.shiftKey, event.ctrlKey);
                 },this)
             });
         
@@ -12415,7 +13747,7 @@ draw2d.Canvas = Class.extend(
                 drag: $.proxy(function(event, ui){
                     event = this._getEvent(event);
                     var pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY);
-                    this.onDrag(ui.draggable, pos.getX(), pos.getY());
+                    this.onDrag(ui.draggable, pos.getX(), pos.getY(), event.shiftKey, event.ctrlKey);
                 },this),
                 stop: function(e, ui){
                     this.isInExternalDragOperation=false;
@@ -12430,7 +13762,7 @@ draw2d.Canvas = Class.extend(
         // painting stuff
         //
         if(typeof height!== "undefined"){
-            this.paper = Raphael(canvasId,width, height);
+            this.paper = Raphael(canvasId, width, height);
         }
         else{
             this.paper = Raphael(canvasId, this.getWidth(), this.getHeight());
@@ -12472,6 +13804,7 @@ draw2d.Canvas = Class.extend(
         this.linesToRepaintAfterDragDrop =  new draw2d.util.ArrayList();
         this.lineIntersections = new draw2d.util.ArrayList();
        
+        this.installEditPolicy( new draw2d.policy.canvas.DefaultKeyboardPolicy());
         this.installEditPolicy( new draw2d.policy.canvas.BoundingboxSelectionPolicy());
 //        this.installEditPolicy( new draw2d.policy.canvas.FadeoutDecorationPolicy());
 
@@ -12591,7 +13924,7 @@ draw2d.Canvas = Class.extend(
         
         // Catch the dblclick and route them to the Canvas hook.
         //
-        $(document).bind("dblclick",$.proxy(function(event)
+        this.html.bind("dblclick",$.proxy(function(event)
         {
             event = this._getEvent(event);
 
@@ -12604,7 +13937,7 @@ draw2d.Canvas = Class.extend(
         
         // Catch the keyDown and CTRL-key and route them to the Canvas hook.
         //
-        $(document).bind("click",$.proxy(function(event)
+        this.html.bind("click",$.proxy(function(event)
         {
             event = this._getEvent(event);
 
@@ -12616,20 +13949,102 @@ draw2d.Canvas = Class.extend(
             }
         },this));
 
+        // Catch the keyUp and CTRL-key and route them to the Canvas hook.
+        //
+        this.keyupCallback = $.proxy(function(event) {
+            // don't initiate the delete command if the event comes from an INPUT field. In this case the user want delete
+            // a character in the input field and not the related shape
+            if(!$(event.target).is("input")){
+                this.editPolicy.each($.proxy(function(i,policy){
+                    if(policy instanceof draw2d.policy.canvas.KeyboardPolicy){
+                        policy.onKeyUp(this, event.keyCode, event.shiftKey, event.ctrlKey);
+                    }
+               },this));
+             }
+        },this);
+        $(document).bind("keyup", this.keyupCallback);
+
         // Catch the keyDown and CTRL-key and route them to the Canvas hook.
         //
-        $(document).bind("keydown",$.proxy(function(event)
-        {
-          // don't initiate the delete command if the event comes from an INPUT field. In this case the user want delete
-          // a character in the input field and not the related shape
-          if(!$(event.target).is("input")){
-             var ctrl = event.ctrlKey;
-             this.onKeyDown(event.keyCode, ctrl);
-           }
-        },this));
+        this.keydownCallback = $.proxy(function(event) {
+            // don't initiate the delete command if the event comes from an INPUT field. In this case the user want delete
+            // a character in the input field and not the related shape
+            if(!$(event.target).is("input")){
+               this.editPolicy.each($.proxy(function(i,policy){
+                   if(policy instanceof draw2d.policy.canvas.KeyboardPolicy){
+                       policy.onKeyDown(this, event.keyCode, event.shiftKey, event.ctrlKey);
+                   }
+              },this));
+            }
+        },this);
+        $(document).bind("keydown",this.keydownCallback);
 
     },
+    
+    /**
+     * @method
+     * Call this method if you didn't need the canvas anymore. The method unregister all even handlers
+     * and free all resources. The canvas is unusable after this call
+     * 
+     * @since. 4.7.4
+     */
+    destroy : function(){
+      this.clear();
+      $(document).unbind("keydown", this.keydownCallback);
+      $(document).unbind("keyup"  , this.keyupCallback);
+      try{
+          this.paper.remove();
+      }catch(exc){
+          // breaks in some ie7 version....don't care about this because ie7/8 isn't a state of the art browser  ;-)
+      }
+    },
 
+    /**
+     * @method
+     * Reset the canvas and delete all model elements.<br>
+     * You can now reload another model to the canvas with a {@link draw2d.io.Reader}
+     * 
+     * @since 1.1.0
+     */
+    clear : function(){
+        
+        this.lines.clone().each($.proxy(function(i,e){
+            this.removeFigure(e);
+        },this));
+        
+         this.figures.clone().each($.proxy(function(i,e){
+            this.removeFigure(e);
+        },this));
+        
+        this.zoomFactor =1.0;
+        this.selection.clear();
+        this.currentDropTarget = null;
+        this.isInExternalDragOperation=false;
+
+        // internal document with all figures, ports, ....
+        //
+        this.figures = new draw2d.util.ArrayList();
+        this.lines = new draw2d.util.ArrayList();
+        this.commonPorts = new draw2d.util.ArrayList();
+        this.dropTargets = new draw2d.util.ArrayList();
+       
+        this.commandStack.markSaveLocation();
+        
+        // INTERSECTION/CROSSING handling for connections and lines
+        //
+        this.linesToRepaintAfterDragDrop =  new draw2d.util.ArrayList();
+        this.lineIntersections = new draw2d.util.ArrayList();
+        
+        // Inform all listener that the selection has been cleanup. Normally this will be done
+        // by the edit policies of the canvas..but exceptional this is done in the clear method as well -
+        // Design flaw.
+        this.selectionListeners.each(function(i,w){
+            w.onSelectionChanged(null);
+        });
+        
+        return this;
+    },
+    
     /**
      * @method
      * Callback for any kind of image export tools to trigger the canvas to hide all unwanted
@@ -12676,52 +14091,11 @@ draw2d.Canvas = Class.extend(
                 }
             },this));
         }
+        
+        return this;
     },
 
-    /**
-     * @method
-     * reset the canvas and delete all model elements.<br>
-     * You can now reload another model to the canvas with a {@link draw2d.io.Reader}
-     * 
-     * @since 1.1.0
-     */
-    clear : function(){
-        
-        this.lines.clone().each($.proxy(function(i,e){
-            this.removeFigure(e);
-        },this));
-        
-         this.figures.clone().each($.proxy(function(i,e){
-            this.removeFigure(e);
-        },this));
-        
-        this.zoomFactor =1.0;
-        this.selection.clear();
-        this.currentDropTarget = null;
-        this.isInExternalDragOperation=false;
 
-        // internal document with all figures, ports, ....
-        //
-        this.figures = new draw2d.util.ArrayList();
-        this.lines = new draw2d.util.ArrayList();
-        this.commonPorts = new draw2d.util.ArrayList();
-        this.dropTargets = new draw2d.util.ArrayList();
-       
-        this.commandStack.markSaveLocation();
-        
-        // INTERSECTION/CROSSING handling for connections and lines
-        //
-        this.linesToRepaintAfterDragDrop =  new draw2d.util.ArrayList();
-        this.lineIntersections = new draw2d.util.ArrayList();
-        
-        // Inform all listener that the selection has been cleanup. Normally this will be done
-        // by the edit policies of the canvas..but exceptional this is done in the clear method as well -
-        // Design flaw.
-        this.selectionListeners.each(function(i,w){
-            w.onSelectionChanged(null);
-        });
-    },
-    
     /**
      * @method
      * 
@@ -12761,7 +14135,9 @@ draw2d.Canvas = Class.extend(
         }
         
         policy.onInstall(this);
-        this.editPolicy.add(policy);    
+        this.editPolicy.add(policy);  
+        
+        return this;
     },
     
     /**
@@ -12838,6 +14214,50 @@ draw2d.Canvas = Class.extend(
     getZoom: function(){
         return this.zoomFactor;
     },
+    
+    /**
+     * @method
+     * Return the dimension of the drawing area
+     * 
+     * @since 4.4.0
+     * @returns {draw2d.geo.Rectangle}
+     */
+    getDimension : function(){
+        return new draw2d.geo.Rectangle(0,0,this.initialWidth, this.initialHeight);
+    },
+    
+    /**
+     * @method
+     * Tells the canvas to resize. If you do not specific any parameters 
+     * the canvas will attempt to determine the height and width by the enclosing bounding box 
+     * of all elements and set the dimension accordingly. If you would like to set the dimension 
+     * explicitly pass in an draw2d.geo.Rectangle or an object with <b>height</b> and <b>width</b> properties.
+     * 
+     * @since 4.4.0
+     * @param {draw2d.geo.Rectangle} [dim] the dimension to set or null for autodetect
+     */
+    setDimension : function(dim){
+        if (typeof dim === "undefined"){
+            var widths  = this.getFigures().clone().map(function(f){ return f.getAbsoluteX()+f.getWidth();});
+            var heights = this.getFigures().clone().map(function(f){ return f.getAbsoluteY()+f.getHeight();});
+            this.initialHeight = Math.max.apply(Math,heights.asArray());
+            this.initialWidth  = Math.max.apply(Math,widths.asArray());
+        }
+        else if(dim instanceof draw2d.geo.Rectangle){
+            this.initialWidth  = dim.w;
+            this.initialHeight = dim.h;
+        }
+        else if(typeof dim.width ==="number" && typeof dim.height ==="number"){
+            this.initialWidth  = dim.width;
+            this.initialHeight = dim.height;
+        }
+        this.html.css({"width":this.initialWidth+"px", "height":this.initialHeight+"px"});
+        this.paper.setSize(this.initialWidth, this.initialHeight);
+        this.setZoom(this.zoomFactor, false);
+        
+        return this;
+    },
+    
     
     
     /**
@@ -12920,6 +14340,8 @@ draw2d.Canvas = Class.extend(
     setScrollArea:function(elementSelector)
     {
        this.scrollArea= $(elementSelector);
+       
+       return this;
     },
 
     /**
@@ -13006,7 +14428,7 @@ draw2d.Canvas = Class.extend(
      * Add a figure at the given x/y coordinate.
      *
      * @param {draw2d.Figure} figure The figure to add.
-     * @param {Number} [x] The x position.
+     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure or the x/y coordinate if it is an draw2d.geo.Point
      * @param {Number} [y] The y position.
      **/
     addFigure:function( figure , x,  y)
@@ -13015,28 +14437,30 @@ draw2d.Canvas = Class.extend(
             return;
         }
         
+      if(figure instanceof draw2d.shape.basic.Line){
+         this.lines.add(figure);
+         this.linesToRepaintAfterDragDrop = this.lines;
+      }
+      else{
+         this.figures.add(figure);
+         if(typeof y !== "undefined"){
+             figure.setPosition(x,y);
+         }
+         else if(typeof x !== "undefined"){
+             figure.setPosition(x);
+         }
+      }
       figure.setCanvas(this);
 
       // important inital 
       figure.getShapeElement();
 
-
-      if(figure instanceof draw2d.shape.basic.Line){
-        this.lines.add(figure);
-        this.linesToRepaintAfterDragDrop = this.lines;
-      }
-      else{
-        this.figures.add(figure);
-
-        if(typeof y !== "undefined"){
-            figure.setPosition(x,y);
-        }
-      }
-      
       // init a repaint of the figure. This enforce that all properties
       // ( color, dim, stroke,...) will be set.
       figure.repaint();
       figure.fireMoveEvent();
+      
+      return this;
     },
 
     /**
@@ -13046,7 +14470,7 @@ draw2d.Canvas = Class.extend(
      * @param {draw2d.Figure} figure The figure to remove
      **/
     removeFigure:function(figure){
-        // remove the figure froma selection handler as well and cleanup the 
+        // remove the figure from a selection handler as well and cleanup the 
         // selection feedback 
         this.editPolicy.each($.proxy(function(i,policy){
             if(typeof policy.unselect==="function"){
@@ -13066,6 +14490,8 @@ draw2d.Canvas = Class.extend(
         if(figure instanceof draw2d.Connection){
            figure.disconnect();
         }
+        
+        return this;
 
     },
     
@@ -13121,7 +14547,7 @@ draw2d.Canvas = Class.extend(
      * @param {String} id The id of the figure.
      * @return {draw2d.Figure}
      **/
-    getFigure:function(/*:String*/ id)
+    getFigure:function( id)
     {
       var figure = null;
       this.figures.each(function(i,e){
@@ -13193,6 +14619,8 @@ draw2d.Canvas = Class.extend(
           this.commonPorts.add(port);
           this.dropTargets.add(port);
       }
+      
+      return this;
     },
 
     /**
@@ -13209,6 +14637,8 @@ draw2d.Canvas = Class.extend(
 
         this.commonPorts.remove(port);
         this.dropTargets.remove(port);
+        
+        return this;
     },
 
     /**
@@ -13256,28 +14686,78 @@ draw2d.Canvas = Class.extend(
 
     /**
      * @method
-     * Set the current selected figure in the workflow Canvas.
-     *
-     * @param {draw2d.Figure} figure The new selection.
-     * @deprecated
+     * Set the current selected figure or figures in the canvas.<br>
+     * <br>
+     * You can hand over a draw2d.util.ArrayList since version 4.8.0 for multiple selection.
+     * 
+     * @param {draw2d.Figure| draw2d.util.ArrayList} object The figure or list of figures to select.
      **/
-    setCurrentSelection:function( figure )
+    setCurrentSelection:function( object )
     {
-        this.selection.each($.proxy(function(i,e){
-            this.editPolicy.each($.proxy(function(i,policy){
-                if(typeof policy.unselect==="function"){
-                    policy.unselect(this,e);
-                }
+   
+        // multiple selection
+        if(object instanceof draw2d.util.ArrayList){
+            this.selection.each($.proxy(function(i,e){
+                this.editPolicy.each($.proxy(function(i,policy){
+                    if(typeof policy.unselect==="function"){
+                        policy.unselect(this,e);
+                    }
+                },this));
             },this));
-        },this));
- 
-        this.editPolicy.each($.proxy(function(i,policy){
-            if(typeof policy.select==="function"){
-                policy.select(this,figure);
-            }
-        },this));
+            this.addSelection(object);
+        }
+        // single selection
+        else{
+            var figure = object;
+            this.selection.getAll().each($.proxy(function(i,e){
+                this.editPolicy.each($.proxy(function(i,policy){
+                    if(typeof policy.unselect==="function"){
+                        policy.unselect(this,e);
+                    }
+                },this));
+            },this));
+     
+            this.editPolicy.each($.proxy(function(i,policy){
+                if(typeof policy.select==="function"){
+                    policy.select(this,figure);
+                }
+            },this));            
+        }
+
+        
+        return this;
     },
 
+    /**
+     * @method
+     * Add the current figure to the selection. If a single selection policy is installed in the
+     * canvas the selection before is reseted and the figure is the one and only selection.
+     *
+     * @param {draw2d.Figure| draw2d.util.ArrayList} object The figure(s) to add to the selection
+     * @since 4.6.0
+     **/
+    addSelection:function( object )
+    {
+        var add = $.proxy(function(i, figure){
+            this.editPolicy.each($.proxy(function(i,policy){
+                if(typeof policy.select==="function"){
+                    policy.select(this,figure);
+                }
+            },this));            
+        },this);
+        
+        if(object instanceof draw2d.util.ArrayList){
+            object.each(add);
+        }
+        else{
+            add(0,object);
+        }
+        
+        return this;
+
+    },
+
+    
     /**
      * @method
      * Register a listener to the Canvas. The listener must provide a function "onSelectionChanged".
@@ -13298,6 +14778,8 @@ draw2d.Canvas = Class.extend(
           throw "Object doesn't implement required callback method [onSelectionChanged]";
         }
       }
+      
+      return this;
     },
 
     /**
@@ -13311,6 +14793,8 @@ draw2d.Canvas = Class.extend(
       this.selectionListeners = this.selectionListeners.grep(function(listener){
           return listener !== w && listener.onSelectionChanged!==w;
       });
+      
+      return this;
     },
 
 
@@ -13353,15 +14837,15 @@ draw2d.Canvas = Class.extend(
             }
         }
 
-        // 2.) A line is the next option in the priority queue for a "Best" figure
+        // A line is the next option in the priority queue for a "Best" figure
         //
         result = this.getBestLine(x,y,figureToIgnore);
         if(result !==null){
             return result;
         }
         
-        // 3.) Check now the common objects
-        //     run from back to front to aware the z-oder of the figures
+        //  Check now the common objects.
+        //  run reverse to aware the z-oder of the figures
         for ( i = (this.figures.getSize()-1); i >=0; i--)
         {
             var figure = this.figures.get(i);
@@ -13382,12 +14866,7 @@ draw2d.Canvas = Class.extend(
             //
             if (result ===null && figure.isVisible()===true && figure.hitTest(x, y) === true && figure !== figureToIgnore)
             {
-                if (result === null){
-                    result = figure;
-                }
-                else if(result.getZOrder()< figure.getZOrder())  {
-                    result = figure;
-                }
+                result = figure;
             }
 
             if(result !==null){
@@ -13395,9 +14874,9 @@ draw2d.Canvas = Class.extend(
             }
         }
         
-        // 4.) Check the children of the lines as well
-        //     Not selectable/draggable. But should receive onClick/onDoubleClick events 
-        //      as well.
+        // Check the children of the lines as well
+        // Not selectable/draggable. But should receive onClick/onDoubleClick events 
+        // as well.
         var count = this.lines.getSize();
         for(i=0;i< count;i++)
         {
@@ -13429,7 +14908,6 @@ draw2d.Canvas = Class.extend(
      **/
     getBestLine:function( x,  y,  lineToIgnore)
     {
-      var result = null;
       var count = this.lines.getSize();
 
       for(var i=0;i< count;i++)
@@ -13437,13 +14915,10 @@ draw2d.Canvas = Class.extend(
         var line = this.lines.get(i);
         if(line.isVisible()===true && line.hitTest(x,y)===true && line!==lineToIgnore)
         {
-            if(result===null){
-               result = line;
-               break;
-            }
+            return line;
         }
       }
-      return result;
+      return null;
     }, 
 
 
@@ -13535,55 +15010,30 @@ draw2d.Canvas = Class.extend(
      * @method
      * Called if the user drop the droppedDomNode onto the canvas.<br>
      * <br>
-     * Graphiti use the jQuery draggable/droppable lib. Please inspect
+     * Draw2D use the jQuery draggable/droppable lib. Please inspect
      * http://jqueryui.com/demos/droppable/ for further information.
      * 
      * @param {HTMLElement} droppedDomNode The dropped DOM element.
-     * @param {Number} x the x coordinate of the drop
-     * @param {Number} y the y coordinate of the drop
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * 
      * @template
      **/
-    onDrop:function(droppedDomNode, x, y)
+    onDrop:function(droppedDomNode, x, y, shiftKey, ctrlKey)
     {
     },
     
-    /**
-     * @method
-     * Callback if the user press a key
-     * 
-     * @param {Number} keyCode the pressed key
-     * @param {Boolean} ctrl true if the CTRL key is pressed as well
-     * @private
-     **/
-    onKeyDown:function(keyCode, ctrl)
-    {
-      // Figure loescht sich selbst, da dies den KeyDown Event empfangen
-      // kann. Bei einer Linie geht dies leider nicht, und muss hier abgehandelt werden.
-      //
-      if(keyCode==46 && this.selection.getPrimary()!==null){
-         this.commandStack.execute(this.selection.getPrimary().createCommand(new draw2d.command.CommandType(draw2d.command.CommandType.DELETE)));
-      }
-      /*
-      else if(keyCode==90 && ctrl){
-         this.commandStack.undo();
-      }
-      else if(keyCode==89 && ctrl){
-         this.commandStack.redo();
-      }
-      else if(keyCode ===107){
-          this.setZoom(this.zoomFactor*0.95);
-      }
-      else if(keyCode ===109){
-          this.setZoom(this.zoomFactor*1.05);
-      }
-      */
-    },
 
     /**
+     * @method
+     * Callback method for the double click event. The x/y coordinates are relative to the top left
+     * corner of the canvas.
+     * 
      * @private
      **/
-    onDoubleClick : function(/* :int */x, /* :int */y, shiftKey, ctrlKey)
+    onDoubleClick : function(x, y, shiftKey, ctrlKey)
     {
         // check if a line has been hit
         //
@@ -13592,6 +15042,7 @@ draw2d.Canvas = Class.extend(
         if(figure!==null){
             figure.onDoubleClick();
         }
+        
         // forward the event to all install policies as well.
         // (since 4.0.0)
         this.editPolicy.each($.proxy(function(i,policy){
@@ -13600,11 +15051,13 @@ draw2d.Canvas = Class.extend(
     },
 
     /**
+     * @param {Number} x the x coordinate of the event
+     * @param {Number} y the y coordinate of the event
      * @param {Boolean} shiftKey true if the shift key has been pressed during this event
      * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @private
      **/
-    onClick : function(/* :int */x, /* :int */y, shiftKey, ctrlKey)
+    onClick : function(x, y, shiftKey, ctrlKey)
     {
         // check if a figure has been hit
         //
@@ -13623,27 +15076,43 @@ draw2d.Canvas = Class.extend(
         // forward the event to all install policies as well.
         // (since 3.0.0)
         this.editPolicy.each($.proxy(function(i,policy){
-            policy.onClick(figure, x,y, shiftKey, ctrlKey);
+            policy.onClick(figure, x, y, shiftKey, ctrlKey);
         },this));
 
     },
 
     /**
      * @method
-     * The user has triggered a right click. Redirect them to a responsible figure
+     * The user has triggered a right click. Redirect them to a responsible figure. 
      * 
      * @param {Number} x The x-coordinate of the click
      * @param {Number} y The y-coordinate of the click
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * 
      * @private
      * @since 1.1.0
      **/
-    onRightMouseDown : function(x, y)
+    onRightMouseDown : function(x, y, shiftKey, ctrlKey)
     {
-       var figure = this.getBestFigure(x, y);
+        var figure = this.getBestFigure(x, y);
         if(figure!==null){
             figure.onContextMenu(x,y);
+            
+            // forward the event to all installed policies of the figure
+            // soft migration from onHookXYZ to Policies.
+            // since 4.4.0
+            figure.editPolicy.each($.proxy(function(i,policy){
+                policy.onRightMouseDown(figure, x, y, shiftKey, ctrlKey);
+            },this));
         }
+        
+        // forward the event to all install policies as well.
+        // (since 4.4.0)
+        this.editPolicy.each($.proxy(function(i,policy){
+            policy.onRightMouseDown(figure, x, y, shiftKey, ctrlKey);
+        },this));
+
     }
 });
 /*****************************************
@@ -13717,6 +15186,14 @@ draw2d.Selection = Class.extend({
         }
     },
 
+    /**
+     * @method
+     * Add a figure to the selection. No events are fired or update the selection handle. This method just
+     * add the figure to the internal management data structure.
+     * 
+     * @param figure
+     * @private
+     */
     add: function(figure){
         if(figure!==null && !this.all.contains(figure)){
             this.all.add(figure);
@@ -13733,6 +15210,17 @@ draw2d.Selection = Class.extend({
      */
     contains: function(figure){
         return this.all.contains(figure);
+    },
+
+    /**
+     * @method
+     * Return the size of the selection
+     * 
+     * @since 4.8.0
+     */
+    getSize: function()
+    {
+        return this.all.getSize();
     },
     
     /**
@@ -13777,9 +15265,10 @@ draw2d.Figure = Class.extend({
      * @param {Number} [height] initial height of the shape
      */
     init: function( width, height ) {
+        // all figures has an unique id. Required for figure get and persistence storage
         this.id = draw2d.util.UUID.create();
         
-        // required in the SelectionEditPolicy to indicate the type of figure
+        // required for the SelectionEditPolicy to indicate the type of figure
         // which the user clicks
         this.isResizeHandle=false;
         
@@ -13787,7 +15276,10 @@ draw2d.Figure = Class.extend({
         // and execute it on the CommandStack if the user drop the figure.
         this.command = null;
         
+        // the assigned canvas
         this.canvas = null;
+        
+        // the RaphaelJS element reference
         this.shape  = null;
         
         // possible decorations ( e.g. a Label) of the Connection
@@ -13818,6 +15310,10 @@ draw2d.Figure = Class.extend({
         // @see: this.children
         this.parent = null;
         
+        // a figure can be part of a StrongComposite like a group, ...
+        //
+        this.composite = null;
+        
         // generic handle for the JSON read/write of user defined data
         this.userData = null;
        
@@ -13831,6 +15327,7 @@ draw2d.Figure = Class.extend({
         // add the name of the class to the css attribute
         this.cssClass = this.NAME.replace(new RegExp("[.]","g"), "_");
        
+        // set some good defaults for the width/height
         if(typeof height !== "undefined"){
             this.width  = width;
             this.height = height;
@@ -13855,7 +15352,7 @@ draw2d.Figure = Class.extend({
         this.moveListener = new draw2d.util.ArrayList();
         this.resizeListener = new draw2d.util.ArrayList();
 
-        
+        // install default selection handler. Can be overridden or replaced
         this.installEditPolicy(new draw2d.policy.figure.RectangleSelectionFeedbackPolicy());
     },
     
@@ -13921,6 +15418,8 @@ draw2d.Figure = Class.extend({
      */
     setUserData: function(object){
       this.userData = object;  
+      
+      return this;
     },
 
     /**
@@ -14077,7 +15576,8 @@ draw2d.Figure = Class.extend({
 
     /**
      * @method
-     * Set the canvas element of this figures.
+     * Set the canvas element of this figures. This can be used to determine whenever an element
+     * is added or removed to the canvas.
      * 
      * @param {draw2d.Canvas} canvas the new parent of the figure or null
      */
@@ -14111,8 +15611,7 @@ draw2d.Figure = Class.extend({
           e.figure.setCanvas(canvas);
       });
       
-      return this;
-      
+      return this;    
      },
      
      /**
@@ -14129,7 +15628,7 @@ draw2d.Figure = Class.extend({
     
      /**
       * @method
-      * Start a timer which calles the onTimer method in the given interval.
+      * Start a timer which calls the onTimer method in the given interval.
       * 
       * @param {Number} milliSeconds
       */
@@ -14172,30 +15671,104 @@ draw2d.Figure = Class.extend({
     	
      },
      
-     /**
-      * @method
-      * Moves the element so it is the closest to the viewer?��s eyes, on top of other elements. Additional
-      * the internal model changed as well.
-      * 
-      * @since 3.0.0
-      */
-     toFront: function(){
-         this.getShapeElement().toFront();
-         if(this.canvas!==null){
-             var figures = this.canvas.getFigures();
-             var lines = this.canvas.getLines();
-             if(figures.remove(this)!==null){
-                 figures.add(this);
-             }else if(lines.remove(this)!==null){
-                 lines.add(this);
+    /**
+     * @method
+     * Moves the element so it is the closest to the viewer?��s eyes, on top of other elements. Additional
+     * the internal model changed as well.
+     * 
+     * Optional: Inserts current object in front of the given one. 
+     * 
+     * @param {draw2d.Figure} [figure] move current object in front of the given one. 
+     * @since 3.0.0
+     */
+     toFront: function(figure){
+         // ensure that the z-oder is still correct if the figure is assigned
+         // to a StrongComposite
+         //
+         if(this.composite instanceof draw2d.shape.composite.StrongComposite && (typeof figure !=="undefined")){
+             var indexFigure = figure.getZOrder();
+             var indexComposite= this.composite.getZOrder();
+             if(indexFigure<indexComposite){
+                 figure = this.composite;
+             }
+         }
+         
+         if(typeof figure ==="undefined"){
+             this.getShapeElement().toFront();
+             
+             if(this.canvas!==null){
+                 var figures = this.canvas.getFigures();
+                 var lines = this.canvas.getLines();
+                 if(figures.remove(this)!==null){
+                     figures.add(this);
+                 }else if(lines.remove(this)!==null){
+                     lines.add(this);
+                 }
+             }
+         }
+         else{
+
+             this.getShapeElement().insertAfter(figure.getShapeElement());
+             
+             if(this.canvas!==null){
+                 
+                 var figures = this.canvas.getFigures();
+                 var lines = this.canvas.getLines();
+                 if(figures.remove(this)!==null){
+                     var index = figures.indexOf(figure);
+                     figures.insertElementAt(this, index+1);
+                 }else if(lines.remove(this)!==null){
+                     lines.add(this);
+                 }
              }
          }
          
          // bring all children figures in front of the parent
-         //
          this.children.each(function(i,child){
-             child.figure.toFront();
+             child.figure.toFront(figure);
          });
+         
+         return this;
+     },
+     
+     /**
+      * @method
+      * Moves the element to the background. Additional
+      * the internal model changed as well.
+      * 
+      * @since 4.7.2
+      */
+     toBack: function(figure ){
+         // it is not allowed that a figure is behind an assinged composite
+         //
+         if(this.composite instanceof draw2d.shape.composite.StrongComposite){
+             this.toFront(this.composite);
+             return;
+         }
+         
+         if(this.canvas!==null){
+             var figures = this.canvas.getFigures();
+             var lines = this.canvas.getLines();
+             if(figures.remove(this)!==null){
+                 figures.insertElementAt(this,0);
+             }else if(lines.remove(this)!==null){
+                 lines.insertElementAt(this,0);
+             }
+         }
+         
+         // bring all children figures in front of the parent
+         // run reverse to the collection to care about the z-order of the children)
+         this.children.each(function(i,child){
+             child.figure.toBack(figure);
+         }, true);
+         
+         if(typeof figure !=="undefined"){
+             this.getShapeElement().insertBefore(figure.getShapeElement());
+         }
+         else{
+             this.getShapeElement().toBack();
+         }
+         
          return this;
      },
      
@@ -14227,6 +15800,38 @@ draw2d.Figure = Class.extend({
          this.editPolicy.add(policy);
          
          return this;
+     },
+     
+     /**
+      * @method
+      * 
+      * UnInstall the edit policy from the figure. Either the instance itself if found
+      * or all kind of the given edit policies.
+      * 
+      * 
+      * @param {draw2d.policy.EditPolicy} policy
+      * @since 4.81
+      */
+     uninstallEditPolicy: function(policy){
+         var removedPolicy = this.editPolicy.remove(policy);
+         
+         // we found the policy and we are happy
+         //
+         if(removedPolicy !==null){
+             removedPolicy.onUninstall(this);
+             return; 
+         }
+         
+         // The policy isn'T part of the figure. In this case we "thinkk" the user want
+         // deinstall all instances of the policy
+         //
+         this.editPolicy.grep($.proxy(function(p){
+             if(p === policy || (p.NAME === policy.NAME)){
+                 p.onUninstall(this);
+                 return false;
+             }
+             return true;
+         },this));
      },
      
      /**
@@ -14297,7 +15902,8 @@ draw2d.Figure = Class.extend({
       * @method
       * Return all children/decorations of this shape
       */
-     getChildren : function(){
+     getChildren : function()
+     {
          var shapes = new draw2d.util.ArrayList();
          this.children.each(function(i,e){
              shapes.add(e.figure);
@@ -14312,7 +15918,8 @@ draw2d.Figure = Class.extend({
       * Remove all children/decorations of this shape
       * 
       */
-     resetChildren : function(){
+     resetChildren : function()
+     {
          this.children.each(function(i,e){
              e.figure.setCanvas(null);
          });
@@ -14404,8 +16011,10 @@ draw2d.Figure = Class.extend({
      
      /**
       * @private
+      * @template
       */
-     applyTransformation:function(){
+     applyTransformation:function()
+     {
      },
      
      /**
@@ -14428,12 +16037,14 @@ draw2d.Figure = Class.extend({
      * Will be called if the drag and drop action begins. You can return [false] if you
      * want avoid that the figure can be move.
      * 
-     * @param {Number} relativeX the x coordinate within the figure
-     * @param {Number} relativeY the y-coordinate within the figure.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * 
      * @return {boolean} true if the figure accepts dragging
      **/
-    onDragStart : function(relativeX, relativeY )
+    onDragStart : function(x, y, shiftKey, ctrlKey )
     {
       this.isInDragDrop =false;
 
@@ -14448,7 +16059,7 @@ draw2d.Figure = Class.extend({
          //
          this.editPolicy.each($.proxy(function(i,e){
              if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
-                 e.onDragStart(this.canvas, this);
+                 e.onDragStart(this.canvas, this, x,y,shiftKey,ctrlKey);
              }
          },this));
 
@@ -14483,21 +16094,16 @@ draw2d.Figure = Class.extend({
             }
       },this));
         
-      this.x = this.ox+dx;
-      this.y = this.oy+dy;
+      var newPos = new draw2d.geo.Point(this.ox+dx, this.oy+dy);
 
       // Adjust the new location if the object can snap to a helper
       // like grid, geometry, ruler,...
       //
-      if(this.getCanSnapToHelper())
-      {
-        var p = new draw2d.geo.Point(this.x,this.y);
-        p = this.getCanvas().snapToHelper(this, p);
-        this.x = p.x;
-        this.y = p.y;
+      if(this.getCanSnapToHelper()){
+        newPos = this.getCanvas().snapToHelper(this, newPos);
       }
-
-      this.setPosition(this.x, this.y);
+      
+      this.setPosition(newPos);
       
       // notify all installed policies
       //
@@ -14531,9 +16137,14 @@ draw2d.Figure = Class.extend({
      * Sub classes can override this method to implement additional stuff. Don't forget to call
      * the super implementation via <code>this._super();</code>
      * 
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
      * @template
      **/
-    onDragEnd : function()
+    onDragEnd : function( x, y, shiftKey, ctrlKey)
     {
       this.setAlpha(this.originalAlpha);
   
@@ -14550,7 +16161,7 @@ draw2d.Figure = Class.extend({
       //
       this.editPolicy.each($.proxy(function(i,e){
           if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
-              e.onDragEnd(this.canvas, this);
+              e.onDragEnd(this.canvas, this, x, y, shiftKey, ctrlKey);
           }
       },this));
 
@@ -14559,7 +16170,7 @@ draw2d.Figure = Class.extend({
 
     /**
      * @method
-     * Called by the framework during drag&drop operations.
+     * Called by the framework during drag&drop operations if the user drag a figure over this figure
      * 
      * @param {draw2d.Figure} draggedFigure The figure which is currently dragging
      * 
@@ -14585,12 +16196,36 @@ draw2d.Figure = Class.extend({
     
     /**
      * @method
-     * Called if the user drop this element onto the dropTarget
+     * Called if the user drop this element onto the dropTarget. This event is ONLY fired if the
+     * shape return "this" in the onDragEnter method.
+     * 
      * 
      * @param {draw2d.Figure} dropTarget The drop target.
-     * @private
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
      **/
-    onDrop:function(dropTarget)
+    onDrop:function(dropTarget, x, y, shiftKey, ctrlKey)
+    {
+    },
+
+    /**
+     * @method
+     * Called if the user dropped an figure onto this element. This event is ONLY fired if the
+     * shape return "this" in the onDragEnter method.
+     * 
+     * 
+     * @param {draw2d.Figure} droppedFigure The dropped figure.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since 4.8.0
+     **/
+    onCatch:function(droppedFigure, x, y, shiftKey, ctrlKey)
     {
     },
    
@@ -14609,7 +16244,7 @@ draw2d.Figure = Class.extend({
     
     /**
      * @method
-     * Callback method for the mouse leave event. Usefull for mouse hover-effects.
+     * Callback method for the mouse leave event. Useful for mouse hover-effects.
      * 
      * @template
      **/
@@ -14622,9 +16257,9 @@ draw2d.Figure = Class.extend({
      * Called when a user dbl clicks on the element
      * 
      * @template
-     * @aside example interaction_dblclick
      */
-    onDoubleClick: function(){
+    onDoubleClick: function()
+    {
     },
     
     
@@ -14634,13 +16269,14 @@ draw2d.Figure = Class.extend({
      * 
      * @template
      */
-    onClick: function(){
+    onClick: function()
+    {
     },
    
     /**
      * @method
-     * called by the framework if the figure should show the contextmenu.<br>
-     * The strategy to show the context menu depends on the plattform. Either loooong press or
+     * called by the framework if the figure should show the context menu.<br>
+     * The strategy to show the context menu depends on the platform. Either looong press or
      * right click with the mouse.
      * 
      * @param {Number} x the x-coordinate to show the menu
@@ -14656,7 +16292,7 @@ draw2d.Figure = Class.extend({
      * @method
      * Set the alpha blending of this figure. 
      *
-     * @param {Number} percent Value between [0..1].
+     * @param {Number} percent value between [0..1].
      * @template
      **/
     setAlpha:function( percent)
@@ -14689,7 +16325,7 @@ draw2d.Figure = Class.extend({
      * @method
      * set the rotation angle in degree [0..356]<br>
      * <br>
-     * <b>NOTE: this method is pre alpha and not for production.</b>
+     * <b>NOTE: this method is pre alpha and not for production. Only steps of 90 degree is working well</b>
      * <br>
      * @param {Number} angle the rotation angle in degree
      */
@@ -14710,6 +16346,15 @@ draw2d.Figure = Class.extend({
         return this;
     },
     
+    /**
+     * @method
+     * return the rotation angle of the figure in degree of [0..356].
+     * 
+     * <br>
+     * <b>NOTE: this method is pre alpha and not for production. Only steps of 90 degree is working well</b>
+     * <br>
+     * @returns {Number}
+     */
     getRotationAngle : function(){
         return this.rotationAngle;
     },
@@ -14752,6 +16397,7 @@ draw2d.Figure = Class.extend({
      */
     setKeepAspectRatio: function( flag){
         this.keepAspectRatio = flag;
+        
         return this;
     },
     
@@ -14824,12 +16470,15 @@ draw2d.Figure = Class.extend({
     /**
      * @method
      * Set the hot spot for all snapTo### operations.
+     * (deprecated? Todo: check references in existing projects)
      * 
      * @param {draw2d.geo.Point} point
      **/
     setSnapToGridAnchor:function(point)
     {
       this.snapToGridAnchor = point;
+      
+      return this;
     },
 
     /**
@@ -14951,7 +16600,7 @@ draw2d.Figure = Class.extend({
     getAbsoluteY :function()
     {
         if(this.parent ===null){
-            // provide some good defaults of the figure not placed
+            // provide some good defaults if the figure not placed
             return this.getY()||0;
         }
         return this.getY() + this.parent.getAbsoluteY();  
@@ -14985,7 +16634,7 @@ draw2d.Figure = Class.extend({
      * @method
      * Set the position of the object.
      *
-     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure
+     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure or the x/y coordinate if it is an draw2d.geo.Point
      * @param {Number} [y] The new y coordinate of the figure 
      **/
     setPosition : function(x, y) {
@@ -14997,8 +16646,17 @@ draw2d.Figure = Class.extend({
             this.x = x;
             this.y = y;
         }
+
+        this.editPolicy.each($.proxy(function(i,e){
+            if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
+                var newPos = e.adjustPosition(this,this.x,this.y);
+                this.x = newPos.x;
+                this.y = newPos.y;
+            }
+        },this));
+
         
-       this.repaint();
+        this.repaint();
         
         // Update the resize handles if the user change the position of the
         // element via an API call.
@@ -15029,8 +16687,8 @@ draw2d.Figure = Class.extend({
      * @method
      * Translate the figure with the given x/y offset.
      *
-     * @param {Number} dx The new x translate offset
-     * @param {Number} dy The new y translate offset
+     * @param {Number} dx The x offset to translate
+     * @param {Number} dy The y offset to translate 
      **/
     translate:function(dx , dy )
     {
@@ -15093,7 +16751,7 @@ draw2d.Figure = Class.extend({
 
         this.width = Math.max(this.getMinWidth(),w);
 		this.height= Math.max(this.getMinHeight(),h);
-		  
+
 		this.repaint();
 
         this.fireResizeEvent();
@@ -15112,6 +16770,22 @@ draw2d.Figure = Class.extend({
     },
 
 
+    /**
+     * @method
+     * Set the bounding box of the figure
+     * 
+     * @param {draw2d.geo.Rectangle} rect
+     * @since 4.8.0
+     */
+    setBoundingBox:function(rect){
+        this.repaintBlocked=true;
+        this.setPosition(rect.getTopLeft());
+        this.repaintBlocked=false;
+        this.setDimension(rect.w,rect.h);
+        
+        return this;
+    },
+    
     /**
      * @method
      * Return the bounding box of the figure in absolute position to the canvas.
@@ -15164,7 +16838,12 @@ draw2d.Figure = Class.extend({
      **/
     isDraggable:function()
     {
-      return this.draggable;
+        // delegate to the composite if given
+        if(this.composite!==null){
+            return this.composite.isMemberDraggable(this, this.draggable);
+        }
+        
+        return this.draggable;
     },
 
 
@@ -15201,7 +16880,12 @@ draw2d.Figure = Class.extend({
      **/
     isSelectable:function()
     {
-      return this.selectable;
+        // delegate to the composite if given
+        if(this.composite!==null){
+            return this.composite.isMemberSelectable(this, this.selectable);
+        }
+        
+        return this.selectable;
     },
 
 
@@ -15282,6 +16966,37 @@ draw2d.Figure = Class.extend({
     getParent:function()
     {
       return this.parent;
+    },
+
+    /**
+     * @method
+     * Set the assigned composite of this figure.
+     * 
+     * @param {draw2d.shape.composite.StrongComposite} composite The assigned composite of this figure
+     * @private
+     * @since 4.8.0
+     **/
+    setComposite:function( composite)
+    {
+        if(composite!==null && !(composite instanceof draw2d.shape.composite.StrongComposite)){
+            throw "'composite must inherit from 'draw2d.shape.composite.StrongComposite'";
+        }
+        
+        this.composite = composite;
+
+        return this;
+    },
+
+    /**
+     * @method
+     * Get the assigned composite of this figure.
+     *
+     * @return {draw2d.shape.composite.StrongComposite}
+     * @since 4.8.0
+     **/
+    getComposite:function()
+    {
+      return this.composite;
     },
 
     /**
@@ -15500,6 +17215,10 @@ draw2d.Figure = Class.extend({
             memento.cssClass= this.cssClass;
         }
         
+        if(this.composite!==null){
+            memento.composite = this.composite.getId();
+        }
+
         return memento;
     },
     
@@ -15584,36 +17303,54 @@ draw2d.shape.node.Node = draw2d.Figure.extend({
     
 
     onDoubleClick:function(){
-        var w = this.getWidth();
-        var h = this.getHeight();
-        // rotate in 90�? increment steps..
-        this.setRotationAngle((this.getRotationAngle()+90)%360);
-        // ..and toggle the orientation of the shape (portrait / landscape)
-        this.setDimension(h,w);
-        
-        this.portRelayoutRequired=true;
+        this.canvas.getCommandStack().execute(new draw2d.command.CommandRotate(this, (this.getRotationAngle()+90)%360));
+
     },
     
     /**
      * @method
      * Moves the element so it is the closest to the viewer?��s eyes, on top of other elements. Additional
-     * the internal model changed as well.
+     * the internal model changed as well.<br>
+     * <br>
+     * Optional: Inserts current object in front of the given one. 
      * 
+     * @param {draw2d.Figure} [figure] move current object in front of the given one. 
      * @since 3.0.0
      */
-    toFront: function(){
-        this._super();
+    toFront: function(figure){
+        this._super(figure);
         
         this.getPorts().each(function(i,port){
             port.getConnections().each(function(i,connection){
-                connection.toFront();
+                connection.toFront(figure);
             });
-            port.toFront();
+            port.toFront(figure);
         });
         
         return this;
     },
-    
+
+    /**
+     * @method
+     * Moves the element to the background - z-index below all other shapes. Additional
+     * the internal model changed as well.
+     * 
+     * @since 4.7.2
+     */
+    toBack: function(figure){
+        
+        this.getPorts().each(function(i,port){
+            port.getConnections().each(function(i,connection){
+                connection.toBack(figure);
+            });
+            port.toBack(figure);
+        });
+        
+        this._super(figure);
+        
+        return this;
+    },
+
     /**
      * @method
      * Return all ports of the node.
@@ -16306,6 +18043,9 @@ draw2d.shape.basic.Rectangle = draw2d.VectorFigure.extend({
     },
     
     /**
+     * @method
+     * Apply additional  rotation and transformation to the raphael element.
+     * 
      * @private
      */
     applyTransformation:function(){
@@ -16556,29 +18296,66 @@ draw2d.SetFigure = draw2d.shape.basic.Rectangle.extend({
      * Moves the element so it is the closest to the viewer?��s eyes, on top of other elements. Additional
      * the internal model changed as well.
      * 
+     * Optional: Inserts current object in front of the given one. 
+     * 
+     * @param {draw2d.Figure} [figure] move current object in front of the given one. 
      * @since 3.0.0
      */
-    toFront: function(){
+    toFront: function(figure){
 
-        this._super();
+        this._super(figure);
  
         if(this.svgNodes!==null){
-            this.svgNodes.toFront();
+            if(typeof figure !=="undefined"){
+                this.svgNodes.insertAfter(figure.getShapeElement());
+            }
+            else{
+                this.svgNodes.toFront();
+            }
         }
          
         // the ports must always the top most
         //
         this.getPorts().each(function(i,port){
             port.getConnections().each(function(i,connection){
-                connection.toFront();
+                connection.toFront(figure);
             });
-            port.toFront();
+            port.toFront(figure);
         });
 
         
         return this;
     },
     
+    /**
+     * @method
+     * Moves the element to the background. Additional
+     * the internal model changed as well.
+     * 
+     * Optional: Inserts current object in front of the given one. 
+     * 
+     * @param {draw2d.Figure} [figure] move current object in front of the given one. 
+     * @since 4.7.2
+     */
+    toBack: function(figure){
+
+        if(this.svgNodes!==null){
+            this.svgNodes.toBack();
+        }
+         
+        // the ports must always the top most
+        //
+        this.getPorts().each(function(i,port){
+            port.getConnections().each(function(i,connection){
+                connection.toBack(figure);
+            });
+            port.toBack(figure);
+        });
+
+        this._super();
+        
+        return this;
+    },
     
     
     /**
@@ -16941,12 +18718,14 @@ draw2d.shape.node.Hub = draw2d.shape.basic.Rectangle.extend({
         }
     },
     
-      /**
-      * @method
-      * 
-      * @param draggedFigure
-      * @return {draw2d.Figure} the figure which should receive the drop event or null if the element didnt want a drop event
-      */
+    /**
+     * @method
+     * Called by the framework during drag&drop operations if the user drag a figure over this figure
+     * 
+     * @param {draw2d.Figure} draggedFigure The figure which is currently dragging
+     * 
+     * @return {draw2d.Figure} the figure which should receive the drop event or null if the element didn't want a drop event
+     **/
      onDragEnter : function( draggedFigure )
      {
          // redirect the dragEnter handling to the hybrid port
@@ -17630,7 +19409,8 @@ draw2d.shape.basic.Label= draw2d.SetFigure.extend({
         //
         this.setStroke(1);
         this.setDimension(1,1);
-
+        this.setResizeable(false);
+        
         // behavior of the shape
         //
         this.editor = null;
@@ -17723,19 +19503,6 @@ draw2d.shape.basic.Label= draw2d.SetFigure.extend({
     
     /**
      * @method
-     * A Label is not resizeable. In this case this method returns always <b>false</b>.
-     * 
-     * @returns Returns always false in the case of a Label.
-     * @type boolean
-     **/
-    isResizeable:function()
-    {
-      return false;
-    },
-       
-    
-    /**
-     * @method
      * Set the new font size in [pt].
      *
      * @param {Number} size The new font size in <code>pt</code>
@@ -17788,6 +19555,18 @@ draw2d.shape.basic.Label= draw2d.SetFigure.extend({
       this.clearCache();
       this.bold = bold;
       this.repaint();
+      
+      this.fireResizeEvent();
+      // just to be backward compatible....
+      this.fireMoveEvent();
+      
+      // Update the resize handles if the user change the position of the element via an API call.
+      //
+      this.editPolicy.each($.proxy(function(i,e){
+         if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
+             e.moved(this.canvas, this);
+         }
+      },this));
       
       return this;
     },
@@ -18216,10 +19995,10 @@ draw2d.shape.basic.Label= draw2d.SetFigure.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.shape.basic.Label
- * Implements a simple text with word wrapping.<br>
+ * @class draw2d.shape.basic.Text
+ * Implements a simple text with word wrapping.<br>The height of the element is automatic calculated. The widht of
+ * the element is changeable by the user and respect the minWidth constraint.
  * <br>
- * This very first implementation is pretty inchoate and must be revise fro performance reason.
  * 
  * See the example:
  *
@@ -18231,7 +20010,7 @@ draw2d.shape.basic.Label= draw2d.SetFigure.extend({
  *     
  * @author Andreas Herz
  * @since 4.2.3
- * @extends draw2d.SetFigure
+ * @extends draw2d.shape.basic.Label
  */
 draw2d.shape.basic.Text= draw2d.shape.basic.Label.extend({
 
@@ -18245,9 +20024,10 @@ draw2d.shape.basic.Text= draw2d.shape.basic.Label.extend({
      */
     init : function(text)
     {
+        this.cachedWrappedAttr = null;
+
         this._super(text);
         
-        this.cachedWrappedAttr = null;
         
         // set some good defaults
         this.setDimension(100,50);
@@ -18363,7 +20143,7 @@ draw2d.shape.basic.Text= draw2d.shape.basic.Label.extend({
             var svgText = this.canvas.paper.text(0, 0, "").attr($.extend({},this.calculateTextAttr(),{text:abc}));
             
             // get a good estimation of a letter width...not correct but this is working for the very first draft implementation
-            var letterWidth = svgText.getBBox().width / abc.length;
+            var letterWidth = svgText.getBBox(true).width / abc.length;
     
             var words = this.text.split(" ");
             var x = 0, s = [];
@@ -18376,7 +20156,7 @@ draw2d.shape.basic.Text= draw2d.shape.basic.Label.extend({
                 x += l * letterWidth;
                 s.push(words[i] + " ");
             }
-            var bbox = svgText.getBBox();
+            var bbox = svgText.getBBox(true);
             svgText.remove();
             this.cachedWrappedAttr= {text: s.join(""), width:(bbox.width+this.padding*2), height: (bbox.height+this.padding*2)};
         }
@@ -18453,7 +20233,8 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
     
     /**
      * @constructor
-     * Creates a new figure element which are not assigned to any canvas.
+     * Creates a new figure element which are not assigned to any canvas witht he given start and
+     * end coordinate.
      * 
      * @param {Number} startX the x-coordinate of the start
      * @param {Number} startY the y-coordinate of the start
@@ -18585,7 +20366,14 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
        this._super(dx, dy, dx2, dy2);
    },
 
-   onDragEnd : function()
+   /**
+    * 
+    * @param {Number} x the x-coordinate of the mouse event
+    * @param {Number} y the y-coordinate of the mouse event
+    * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+    * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+    */
+   onDragEnd : function( x, y, shiftKey, ctrlKey)
    {
        this.setAlpha(this.originalAlpha);
        // Element ist zwar schon an seine Position, das Command muss aber trotzdem
@@ -18613,7 +20401,7 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
 	   //
 	   this.editPolicy.each($.proxy(function(i,e){
     	   if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
-    		   e.onDragEnd(this.canvas, this);
+    		   e.onDragEnd(this.canvas, this, x, y, shiftKey, ctrlKey);
     	   }
 	   },this));
 	   
@@ -18673,6 +20461,10 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
      // the main path
      set.push(this.canvas.paper.path("M"+this.start.x+" "+this.start.y+"L"+this.end.x+" "+this.end.y));
      set.node = set.items[1].node;
+     
+     // indicate that the outline is visisble at the momenet
+     // the repaint update the status correct and set the attributes the first time
+     this.outlineVisible = true;
      
      return set;
    },
@@ -18848,6 +20640,27 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
 
    /**
     * @method
+    * return the bounding box of the line or polygon
+    * 
+    * TODO: precalculate or cache this values
+    * 
+    * @returns {draw2d.geo.Rectangle}
+    * @since 4.8.2
+    */
+   getBoundingBox: function(){
+       var minX = Math.min.apply(Math,$.map(this.vertices.asArray(),function(n,i){return n.x;}));
+       var minY = Math.min.apply(Math,$.map(this.vertices.asArray(),function(n,i){return n.y;}));
+       var maxX = Math.max.apply(Math,$.map(this.vertices.asArray(),function(n,i){return n.x;}));
+       var maxY = Math.max.apply(Math,$.map(this.vertices.asArray(),function(n,i){return n.y;}));
+       var width = maxX - minX;
+       var height= maxY - minY;
+       
+       return new draw2d.geo.Rectangle(minX, minY, width, height);
+   },
+   
+
+   /**
+    * @method
     * Set the start point of the line.
     * This method fires a <i>document dirty</i> event.
     *
@@ -18991,7 +20804,48 @@ draw2d.shape.basic.Line = draw2d.Figure.extend({
    },
    /* @deprecated */
    getPoints:function (){return this.getVertices();},
-   
+
+   /**
+    * @method
+    * Update the vertices of the object. The given array is copied and assigned.
+    * 
+    * @param {draw2d.util.ArrayList} vertices the new vertices of the polyline. 
+    * 
+    * @since 4.0.1
+    */
+   setVertices : function(vertices) 
+   {
+       this.vertices= vertices.clone(true);
+
+       this.start=this.vertices.first().clone();
+       this.end=this.vertices.last().clone();
+
+       // update the UI and the segment parts
+       this.svgPathString = null;
+       this.repaint();
+
+       // align the SelectionHandles to the new situation
+       // This is a Hack....normally this should be done below and the Line shouldn't know 
+       // something about this issue....this is complete a "EditPolicy" domain to handle this. 
+       if(!this.selectionHandles.isEmpty()){
+           this.editPolicy.each($.proxy(function(i, e) {
+               if (e instanceof draw2d.policy.figure.SelectionFeedbackPolicy) {
+                   e.onUnselect(this.canvas, this);
+                   e.onSelect(this.canvas, this);
+               }
+           }, this));
+       }
+
+       // notify the listener about the changes
+       this.editPolicy.each($.proxy(function(i, e) {
+           if (e instanceof draw2d.policy.figure.DragDropEditPolicy) {
+               e.moved(this.canvas, this);
+           }
+       }, this));
+
+       return this;
+   },
+
    getSegments: function()
    {
        var result = new draw2d.util.ArrayList();
@@ -19213,7 +21067,6 @@ draw2d.shape.basic.Line.intersection = function(a1, a2, b1, b2) {
         var ub = ub_t / u_b;
 
         if ( 0 <= ua && ua <= 1 && 0 <= ub && ub <= 1 ) {
-//        if ( 0 < ua && ua < 1 && 0 < ub && ub < 1 ) {
             result = new draw2d.geo.Point((a1.x + ua * (a2.x - a1.x))|0, (a1.y + ua * (a2.y - a1.y))|0);
             
             // determine if the lines are crossing or just touching
@@ -19221,15 +21074,7 @@ draw2d.shape.basic.Line.intersection = function(a1, a2, b1, b2) {
             result.justTouching=( 0 == ua || ua == 1 || 0 == ub || ub == 1 );
         }
     }
-    /*
-    else {
-        if ( ua_t == 0 || ub_t == 0 ) {
-            result = null;// Coincident
-        } else {
-            result = null; // Parallel
-        }
-    }
-    */
+
     return result;
 };
 
@@ -19318,8 +21163,11 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
     /**
      * @constructor
      * Creates a new figure element which are not assigned to any canvas.
+     * 
+     * @param {draw2d.layout.connection.ConnectionRouter} [router] the router to use
+     * @param {draw2d.util.ArrayList} vertices the initial vertices to use.
      */
-    init: function( router ) {
+    init: function( router , vertices) {
         
       // internal status handling for performance reasons
       //
@@ -19332,7 +21180,12 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
       this.radius = 2;
       
       // all line segments with start/end as simple object member
-      this.lineSegments = new draw2d.util.ArrayList();
+      if(typeof vertices !=="undefined" && vertices instanceof draw2d.util.ArrayList){
+          this.lineSegments = vertices;
+      }
+      else{
+          this.lineSegments = new draw2d.util.ArrayList();
+      }
 
       this._super();
     },
@@ -19472,34 +21325,6 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
         return this;
     },
 
-    /**
-     * @method
-     * Update the vertices of the object. The given array is copied and assigned.
-     * 
-     * @param {draw2d.util.ArrayList} vertices the new vertices of the polyline. 
-     * 
-     * @since 4.0.1
-     */
-    setVertices : function(vertices) 
-    {
-        this.vertices= vertices.clone();
-
-        this.start=this.vertices.first().clone();
-        this.end=this.vertices.last().clone();
-
-        // update the UI and the segment parts
-        this.svgPathString = null;
-        this.repaint();
-
-        // notify the listener about the changes
-        this.editPolicy.each($.proxy(function(i, e) {
-            if (e instanceof draw2d.policy.figure.DragDropEditPolicy) {
-                e.moved(this.canvas, this);
-            }
-        }, this));
-
-        return this;
-    },
 
     /**
      * @method
@@ -19538,10 +21363,11 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
 
     /**
      * @method
-     * Remove a vertex from the polyline and return the removed point.
+     * Remove a vertex from the polyline and return the removed point. The current installed connection router
+     * can send an veto for this operation.
      * 
      * @param index
-     * @returns {draw2d.geo.Point} the removed point
+     * @returns {draw2d.geo.Point} the removed point or null of the current router decline this operation
      * @since 4.0.0
      */
     removeVertexAt:function(index) 
@@ -19580,7 +21406,7 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
       }
       
       if(typeof router ==="undefined" || router===null){
-          this.router = new draw2d.layout.connection.NullRouter();
+          this.router = new draw2d.layout.connection.DirectRouter();
       }
       else{
           this.router = router;
@@ -19728,11 +21554,34 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
       this.repaintBlocked=false;
       this.repaint();
     },
-    
+
     /**
      * @method
-    * Checks if the hands over coordinate close to the line. The 'corona' is considered
-    * for this test. This means the point isn't direct on the line. Is it only close to the
+     * get the best segment of the line which is below the given coordinate or null if
+     * all segment are not below the coordinate. <br> 
+     * The 'corona' property of the polyline is considered for this test. This means 
+     * the point isn't direct on the line. Is it only close to the line!
+     *
+     * @param {Number} px the x coordinate of the test point
+     * @param {Number} py the y coordinate of the test point
+     * @return {Object}
+     * @since 4.4.0
+      **/
+     hitSegment:function( px, py)
+     {
+       for(var i = 0; i< this.lineSegments.getSize();i++){
+          var segment = this.lineSegments.get(i);
+          if(draw2d.shape.basic.Line.hit(this.corona, segment.start.x,segment.start.y,segment.end.x, segment.end.y, px,py)){
+            return {index: i, start:segment.start, end: segment.end};
+          }
+       }
+       return null;
+     },
+
+   /**
+    * @method
+    * Checks if the hands over coordinate close to the line. The 'corona' property of the polyline 
+    * is considered for this test. This means the point isn't direct on the line. Is it only close to the
     * line!
     *
     * @param {Number} px the x coordinate of the test point
@@ -19741,13 +21590,7 @@ draw2d.shape.basic.PolyLine = draw2d.shape.basic.Line.extend({
      **/
     hitTest:function( px, py)
     {
-      for(var i = 0; i< this.lineSegments.getSize();i++){
-         var segment = this.lineSegments.get(i);
-         if(draw2d.shape.basic.Line.hit(this.corona, segment.start.x,segment.start.y,segment.end.x, segment.end.y, px,py)){
-           return true;
-         }
-      }
-      return false;
+      return this.hitSegment(px,py) !== null;
     },
 
     /**
@@ -20169,6 +22012,15 @@ draw2d.shape.basic.Polygon = draw2d.VectorFigure.extend({
         return this;
     },
     
+    /**
+     * @method
+     * 
+     * @param start
+     * @param end
+     * @param distanceFromStart
+     * @private
+     * @returns
+     */
     insetPoint: function(start, end, distanceFromStart){
         if(start.equals(end)){
             return start;
@@ -20249,6 +22101,11 @@ draw2d.shape.basic.Polygon = draw2d.VectorFigure.extend({
      * @param y
      */
     setPosition : function(x, y) {
+        if (x instanceof draw2d.geo.Point) {
+            y = x.y;
+            x = x.x;
+        }
+
         var dx = x-this.minX;
         var dy = y-this.minY;
         this.translate(dx,dy);
@@ -20366,12 +22223,13 @@ draw2d.shape.basic.Polygon = draw2d.VectorFigure.extend({
     },
 
     /**
+     * @method
      * Insert a new vertex at the given index. All vertices will be shifted to 
      * free the requested index.
      * 
-     * @param index
-     * @param x
-     * @param y
+     * @param {Number} index
+     * @param {Number} x
+     * @param {Number} y
      */
     insertVertexAt:function(index, x, y) 
     {
@@ -20401,7 +22259,7 @@ draw2d.shape.basic.Polygon = draw2d.VectorFigure.extend({
      * @method
      * Remove a vertex from the polygon and return the removed point.
      * 
-     * @param index
+     * @param {Number} index
      * @returns {draw2d.geo.Point} the removed point
      */
     removeVertexAt:function(index) 
@@ -20495,6 +22353,834 @@ draw2d.shape.basic.Polygon = draw2d.VectorFigure.extend({
         }
     }
 });
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.Raft
+ * Tagging interface to determine if an figure is an composite figure
+ *     
+ * @author Andreas Herz
+ * @extends draw2d.shape.basic.Rectangle
+ * @since 4.7.2
+ */
+draw2d.shape.composite.Composite = draw2d.shape.basic.Rectangle.extend({
+    NAME : "draw2d.shape.composite.Composite",
+
+    /**
+     * @constructor
+     * Creates a new composite element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) 
+    {
+      this._super(width, height);
+      // set some good defaults
+      //
+      if(typeof width === "undefined"){
+        this.setDimension(50, 90);
+      }
+      else{
+        this.setDimension(width, height);
+      }
+    },
+    
+    /**
+     * @method
+     * Called when a user dbl clicks on the element
+     * 
+     * @template
+     */
+    onDoubleClick: function()
+    {
+        // do nothing per default. no rotation of the shape.
+    },
+    
+    /**
+     * @method
+     * Delegate method to calculate if a figure is selectable. A composite has the right to override the 
+     * initial selectable flag of the figure.
+     * 
+     * @param {draw2d.Figure} figure the figure to test
+     * @param {Boolean} selectable the initial selectable flag of the figure
+     * @returns
+     * 
+     */
+    isMemberSelectable: function( figure, selectable)
+    {
+        return selectable;
+    },
+    
+    /**
+     * @method
+     * Delegate method to calculate if a figure is draggable. A composite has the right to override the 
+     * initial draggable flag of the figure.
+     * 
+     * @param {draw2d.Figure} figure the figure to test
+     * @param {Boolean} draggable the initial draggable flag of the figure
+     * @returns
+     * 
+     */
+    isMemberDraggable: function( figure, draggable)
+    {
+        return draggable;
+    },
+ 
+    delegateSelectionHandling:function(figure)
+    {
+        return figure;
+    },
+    
+    /**
+     * @method
+     * Set the canvas element of this figures. This can be used to determine whenever an element
+     * is added or removed to the canvas.
+     * 
+     * @param {draw2d.Canvas} canvas the new parent of the figure or null
+     */
+    setCanvas: function( canvas ) 
+    {
+        this._super(canvas);
+        
+        // an composite shape goes always in the background
+        //
+        if(canvas!==null){
+            this.toBack();
+        }
+    }
+
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.StrongComposite
+ * A StrongComposite is a composite figure with strong assignment of the children and the composite.
+ * The child knows everything about the assigned composite and receives events about assignment to a 
+ * composite.
+ * 
+ *     
+ * @author Andreas Herz
+ * @extends draw2d.shape.composite.Composite
+ * @since 4.8.0
+ */
+draw2d.shape.composite.StrongComposite = draw2d.shape.composite.Composite.extend({
+    NAME : "draw2d.shape.composite.StrongComposite",
+
+    /**
+     * @constructor
+     * Creates a new strong composite element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) 
+    {
+        
+        this.assignedFigures = new draw2d.util.ArrayList();
+   
+        this._super(width, height);
+
+    },
+    
+
+    /**
+     * @method
+     * Assign a figure to the composite.
+     * 
+     * @param {draw2d.Figure} figure
+     * @template
+     */
+    assignFigure: function(figure)
+    {
+        return this;
+    },
+    
+    /**
+     * @method
+     * Remove the given figure from the group assignment
+     * 
+     * @param {draw2d.Figure} figure the figure to remove
+     * @template
+     */
+    unassignFigure:function(figure)
+    {
+        return this;
+    },
+    
+    /**
+     * @method
+     * Return all assigned figures of the composite
+     * 
+     * @returns {draw2d.util.ArrayList}
+     */
+    getAssignedFigures:function()
+    {
+        return this.assignedFigures;
+    },
+    
+    
+    /**
+     * @method
+     * Called by the framework during drag&drop operations if the user drag a figure over this figure
+     * 
+     * @param {draw2d.Figure} draggedFigure The figure which is currently dragging
+     * 
+     * @return {draw2d.Figure} the figure which should receive the drop event or null if the element didn't want a drop event
+     **/
+    onDragEnter : function( draggedFigure )
+    {
+        return this;
+    },
+ 
+    /**
+     * @method
+     * Called if the user drop this element onto the dropTarget. This event is ONLY fired if the
+     * shape return "this" in the onDragEnter method.
+     * 
+     * 
+     * @param {draw2d.Figure} dropTarget The drop target.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since  4.7.4
+     **/
+    onDrop:function(dropTarget, x, y, shiftKey, ctrlKey)
+    {
+    },
+    
+    /**
+     * @method
+     * Called if the user dropped an figure onto this element. This event is ONLY fired if the
+     * shape return "this" in the onDragEnter method.
+     * 
+     * 
+     * @param {draw2d.Figure} droppedFigure The dropped figure.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * @template
+     * @since 4.7.4
+     **/
+    onCatch:function(droppedFigure, x, y, shiftKey, ctrlKey)
+    {
+    },
+    
+    /**
+     * @method
+     * Moves the element so it is the closest to the viewer?��s eyes, on top of other elements. Additional
+     * the internal model changed as well.
+     * 
+     * Optional: Inserts current object in front of the given one. 
+     * 
+     * @param {draw2d.Figure} [figure] move current object in front of the given one. 
+     */
+     toFront: function(figure)
+     {
+         this._super(figure);
+         // ensure that all assigned figures are in front of the composite
+         //
+         var figures = this.getAssignedFigures().clone();
+         figures.sort(function(a,b){
+             // return 1  if a before b
+             // return -1 if b before a
+             return a.getZOrder()>b.getZOrder()?-1:1;
+         });
+         figures.each($.proxy(function(i,f){
+             f.toFront(this);
+         },this));
+         
+         return this;
+     },
+     
+     toBack: function(figure)
+     {
+         this._super(figure);
+         // ensure that all assigned figures are in front of the composite
+         //
+         var figures = this.getAssignedFigures().clone();
+         figures.sort(function(a,b){
+             // return 1  if a before b
+             // return -1 if b before a
+             return a.getZOrder()>b.getZOrder()?-1:1;
+         });
+         figures.each($.proxy(function(i,f){
+             f.toBack(this);
+         },this));
+         
+         return this;
+     }     
+});
+
+
+
+
+
+
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.Group
+ * A group is a figure that acts as a transparent container for other figures. A group 
+ * is a StrongComposite node that controls a set of child figures. The bounding rectangle of 
+ * a group is the union of the bounds of its children. Child nodes cannot be selected or 
+ * manipulated individually.   
+ * 
+ *   
+ * @author Andreas Herz
+ * @extends draw2d.shape.composite.StrongComposite
+ * @since 4.8.0
+ */
+draw2d.shape.composite.Group = draw2d.shape.composite.StrongComposite.extend({
+    NAME : "draw2d.shape.composite.Group",
+
+    /**
+     * @constructor
+     * Creates a new figure element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) 
+    {
+      this._super(width, height);
+
+      // a group is invisible
+      this.setBackgroundColor( null);
+      this.setColor(null);
+      
+      // a group isn't resizeable. The dimension is calculated by the union bounding box of all children
+      this.setResizeable(false);
+      
+      this.stickFigures = false;
+    },
+    
+    /**
+     * @method
+     * Checks whenever a figure is selectable. In case of a group a single figure
+     * isn't selectable. Just a complete group can be selected.
+     * 
+     * @param {draw2d.Figure} figure the figure to check
+     */
+    delegateSelectionHandling:function(figure)
+    {
+        return this;
+    },
+    
+    
+    /**
+     * @method
+     * Delegate method to calculate if a figure is selectable. A composite has the right to override the 
+     * initial selectable flag of the figure.
+     * 
+     * @param {draw2d.Figure} figure the figure to test
+     * @param {Boolean} selectable the initial selectable flag of the figure
+     * @returns
+     * 
+     */
+    isMemberSelectable: function( figure, selectable)
+    {
+        return false;
+    },
+    
+    /**
+     * @method
+     * Delegate method to calculate if a figure is draggable. A composite has the right to override the 
+     * initial draggable flag of the figure.
+     * <br>
+     * Returns false because only the complete group is draggable
+     * 
+     * @param {draw2d.Figure} figure the figure to test
+     * @param {Boolean} draggable the initial draggable flag of the figure
+     * @returns
+     * 
+     */
+    isMemberDraggable: function( figure, draggable)
+    {
+        return false;
+    },
+ 
+    /**
+     * @method
+     * Set the position of the object.
+     *
+     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure
+     * @param {Number} [y] The new y coordinate of the figure 
+     **/
+    setPosition : function(x, y) 
+    {
+        var oldX = this.x;
+        var oldY = this.y;
+        
+      
+        this._super(x,y);
+        
+        var dx = this.x-oldX;
+        var dy = this.y-oldY;
+        
+        if(dx ===0 && dy===0 ){
+            return this;
+        }
+
+        if(this.stickFigures===false){
+            this.assignedFigures.each($.proxy(function(i,figure){
+                figure.translate(dx,dy);
+            },this));
+        }
+        
+        return this;
+    },
+    
+    /**
+     * @method
+     * Assign a figure to the given group.
+     * The bounding box of the group is recalculated and the union of the current bounding box with the
+     * figure bounding box.
+     * 
+     * @param {draw2d.Figure} figure
+     */
+    assignFigure: function(figure)
+    {
+        if(!this.assignedFigures.contains(figure)){
+            this.stickFigures=true;
+            if(this.assignedFigures.isEmpty()===true){
+                this.setBoundingBox(figure.getBoundingBox());
+            }
+            else{
+                this.setBoundingBox(this.getBoundingBox().merge(figure.getBoundingBox()));
+            }
+            this.assignedFigures.add(figure);
+            figure.setComposite(this);
+            this.stickFigures=false;
+        }
+        return this;
+    },
+    
+    /**
+     * @method
+     * Remove the given figure from the group assignment
+     * 
+     * @param {draw2d.Figure} figure the figure to remove
+     * 
+     */
+    unassignFigure:function(figure)
+    {
+        if(this.assignedFigures.contains(figure)){
+            this.stickFigures=true;
+            figure.setComposite(null);
+            this.assignedFigures.remove(figure);
+            if(!this.assignedFigures.isEmpty()){
+                var box = this.assignedFigures.first().getBoundingBox();
+                this.assignedFigures.each(function(i,figure){
+                    box.merge(figure.getBoundingBox());
+                });
+                this.setBoundingBox(box);
+            }
+            this.stickFigures=false;
+        }
+
+        return this;
+    }
+});
+
+
+
+
+
+
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.Jailhouse
+ * <b>Still under development</b><br>
+ * <br>
+ * A Jailhouse is a figure that acts as a container for other figures. A Jailhouse 
+ * is a StrongComposite node that controls a set of child figures. Child nodes can't
+ * moved outside of the composite.<br>
+ * Objects in a jailhouse have the same Z-order, which can be relatively controlled with 
+ * respect to other figures. 
+ *   
+ * @author Andreas Herz
+ * @extends draw2d.shape.composite.StrongComposite
+ * @since 4.8.0
+ */
+draw2d.shape.composite.Jailhouse = draw2d.shape.composite.StrongComposite.extend({
+    NAME : "draw2d.shape.composite.Jailhouse",
+
+    /**
+     * @constructor
+     * Creates a new figure element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) 
+    {
+      this.policy = new draw2d.policy.figure.RegionEditPolicy(0,0,10,10);
+      this._super(width, height);
+
+      // a group is invisible
+      this.setBackgroundColor( "#f0f0f0");
+      this.setColor("#333333");
+      
+      this.stickFigures = false;
+    },
+      
+    /**
+     * @method
+     * Set the new width and height of the figure and update the constraint policy for the assigned
+     * figures.. 
+     *
+     * @param {Number} w The new width of the figure
+     * @param {Number} h The new height of the figure
+     **/
+    setDimension:function(w, h)
+    {
+        this._super(w,h);
+        this.policy.setBoundingBox(this.getAbsoluteBounds());
+    },
+    
+    /**
+     * @method
+     * Return the figure which handles the selection handling. In case of a jailhouse, all
+     * assigned figures are selectable and this method return always the "figure" parameter.
+     * 
+     * @param {draw2d.Figure} figure the figure which requests the selection
+     * @returns
+     */
+    delegateSelectionHandling:function(figure)
+    {
+        return figure;
+    },
+    
+ 
+    /**
+     * @method
+     * Set the position of the object.
+     *
+     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure
+     * @param {Number} [y] The new y coordinate of the figure 
+     **/
+    setPosition : function(x, y) 
+    {
+        var oldX = this.x;
+        var oldY = this.y;
+        
+      
+        this._super(x,y);
+        
+        var dx = this.x-oldX;
+        var dy = this.y-oldY;
+        
+        if(dx ===0 && dy===0 ){
+            return this;
+        }
+        this.policy.setBoundingBox(this.getAbsoluteBounds());
+
+        if(this.stickFigures===false){
+            this.assignedFigures.each($.proxy(function(i,figure){
+                figure.translate(dx,dy);
+            },this));
+        }
+        
+        return this;
+    },
+    
+    /**
+     * @method
+     * Assign a figure to the given group.
+     * The bounding box of the group is recalculated and the union of the current bounding box with the
+     * figure bounding box.
+     * 
+     * @param {draw2d.Figure} figure
+     */
+    assignFigure: function(figure)
+    {
+        if(!this.assignedFigures.contains(figure) && figure!==this){
+            this.stickFigures=true;
+            this.setBoundingBox(this.getBoundingBox().merge(figure.getBoundingBox()));
+            this.assignedFigures.add(figure);
+            figure.setComposite(this);
+            figure.installEditPolicy(this.policy);
+            figure.toFront(this);
+            this.stickFigures=false;
+        }
+        return this;
+    },
+    
+    /**
+     * @method
+     * Remove the given figure from the group assignment
+     * 
+     * @param {draw2d.Figure} figure the figure to remove
+     * 
+     */
+    unassignFigure:function(figure)
+    {
+        if(this.assignedFigures.contains(figure)){
+            this.stickFigures=true;
+            figure.setComposite(null);
+            figure.uninstallEditPolicy(this.policy);
+            this.assignedFigures.remove(figure);
+            if(!this.assignedFigures.isEmpty()){
+                var box = this.assignedFigures.first().getBoundingBox();
+                this.assignedFigures.each(function(i,figure){
+                    box.merge(figure.getBoundingBox());
+                });
+                this.setBoundingBox(box);
+            }
+            this.stickFigures=false;
+        }
+
+        return this;
+    },
+    
+    onCatch:function(droppedFigure, x, y, shiftKey, ctrlKey)
+    {
+        this.getCanvas().getCommandStack().execute(new draw2d.command.CommandAssignFigure(droppedFigure, this));
+    },
+    
+    
+    /**
+     * @method
+     * Return the minWidth of the jailhouse. The minWidth is calculated by care the assigned figures.
+     * 
+     * 
+     * @private
+     * @returns
+     */
+     getMinWidth:function()
+     {
+         var width=0;
+         this.assignedFigures.each(function(i,figure){
+             width = Math.max(width,figure.getBoundingBox().getRight());
+         });
+         return width-this.getAbsoluteX();
+     },
+
+     /**
+      * @method
+      * 
+      * @private
+      * @returns
+      */
+     getMinHeight:function()
+     {
+         var height=0;
+         this.assignedFigures.each(function(i,figure){
+             height = Math.max(height,figure.getBoundingBox().getBottom());
+         });
+         return height-this.getAbsoluteY();
+     }
+});
+
+
+
+
+
+
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.WeakComposite
+ * A WeakComposite is a composite figure with loose coupling of the children and the composite.
+ * The child didn't know anything about the assigned composite nor did they receive any events
+ * about assignment to a composite.
+ * 
+ * Assignment without obligation.
+ * 
+ *     
+ * @author Andreas Herz
+ * @extends draw2d.shape.composite.Composite
+ * @since 4.8.0
+ */
+draw2d.shape.composite.WeakComposite = draw2d.shape.composite.Composite.extend({
+    NAME : "draw2d.shape.composite.WeakComposite",
+
+    /**
+     * @constructor
+     * Creates a new weak composite element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) {
+       this._super(width, height);
+
+    }
+});
+
+
+
+
+
+
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.shape.composite.Raft
+ * Raft figures are shapes, which aggregate multiple figures. It works like a real raft. Aboard figures are 
+ * moved if the raft figures moves.
+ * 
+ * See the example:
+ *
+ *     @example preview small frame
+ *     
+ *     var rect1 =  new draw2d.shape.composite.Raft(200,100);
+ *     var rect2 =  new draw2d.shape.basic.Rectangle();
+ *     
+ *     canvas.addFigure(rect1,10,10);
+ *     canvas.addFigure(rect2,20,20);
+ *     
+ *     rect2.setBackgroundColor("#f0f000");
+ *     rect2.setDimension(50,50);
+ *     rect2.setRadius(10);
+ *     
+ *     canvas.setCurrentSelection(rect1);
+ *     
+ * @author Andreas Herz
+ * @extends draw2d.shape.composite.WeakComposite
+ * @since 4.7.0
+ */
+draw2d.shape.composite.Raft = draw2d.shape.composite.WeakComposite.extend({
+    NAME : "draw2d.shape.composite.Raft",
+
+    /**
+     * @constructor
+     * Creates a new figure element which are not assigned to any canvas.
+     * 
+     */
+    init: function( width, height) {
+       
+      this.aboardFigures = new draw2d.util.ArrayList();
+      
+      this._super(width, height);
+
+      this.setBackgroundColor( new draw2d.util.Color(200,200,200));
+      this.setColor("#1B1B1B");
+     
+   },
+    
+
+    /**
+     * @method
+     * Will be called if the drag and drop action begins. You can return [false] if you
+     * want avoid that the figure can be move.
+     * 
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
+     * @return {boolean} true if the figure accepts dragging
+     **/
+    onDragStart : function(x, y, shiftKey, ctrlKey ){
+        this._super(x,y,shiftKey,ctrlKey);
+        
+        this.aboardFigures=new draw2d.util.ArrayList();
+        // force the recalculation of the aboard figures if the shape is in a drag&drop operation
+        this.getAboardFigures(this.isInDragDrop);
+    },
+    
+    /**
+     * @method
+     * Set the position of the object.
+     *
+     * @param {Number/draw2d.geo.Point} x The new x coordinate of the figure
+     * @param {Number} [y] The new y coordinate of the figure 
+     **/
+    setPosition : function(x, y) {
+        var oldX = this.x;
+        var oldY = this.y;
+        
+        // we need the figures before the composite has moved. Otherwise some figures are fall out of the raft
+        // 
+        var aboardedFigures =this.getAboardFigures(this.isInDragDrop===false);
+        
+        this._super(x,y);
+        
+        var dx = this.x-oldX;
+        var dy = this.y-oldY;
+        
+        if(dx ===0 && dy===0 ){
+            return this;
+        }
+
+        aboardedFigures.each($.proxy(function(i,figure){
+            figure.translate(dx,dy);
+        },this));
+        
+        return this;
+    },
+    
+    /**
+     * @method
+     * Return all figures which are aboard of this shape. These shapes are moved as well if the raft
+     * is moving.
+     * 
+     * @returns {draw2d.util.ArrayList}
+     */
+    getAboardFigures: function(recalculate){
+        if(recalculate===true && this.canvas !==null){
+            var raftBoundingBox = this.getBoundingBox();
+            var zIndex = this.getZOrder();
+            this.aboardFigures=new draw2d.util.ArrayList();
+            
+            this.getCanvas().getFigures().each($.proxy(function(i,figure){
+                if(figure !==this && figure.isSelectable() === true && figure.getBoundingBox().isInside(raftBoundingBox)){
+                    // Don't add the figure if it is already catched by another composite with a higher z-index
+                    //
+                    if(this.getNextComposite(figure)!==this){
+                        return;
+                    }
+                    // only add the shape if it is in front of the raft
+                    if(figure.getZOrder()> zIndex){
+                        this.aboardFigures.add(figure);
+                    }
+                }
+            },this));
+        }
+        return this.aboardFigures;
+    },
+    
+    /**
+     * @method
+     * return the next potential composite parent figure
+     * 
+     * @param figureToTest
+     * @returns
+     */
+    getNextComposite: function(figureToTest){
+        var nextComposite = null;
+        this.getCanvas().getFigures().each($.proxy(function(i, figure){
+            if(figureToTest === figure){
+                return;
+            }
+            if(figure instanceof draw2d.shape.composite.Composite){
+                if(nextComposite!==null && nextComposite.getZOrder() > figure.getZOrder()){
+                    return;
+                }
+                
+                if(figure.getBoundingBox().contains(figureToTest.getBoundingBox())){
+                    nextComposite = figure;
+                }
+            }
+        },this));
+        
+        return nextComposite;
+    }
+});
+
+
+
+
+
+
 
 /*****************************************
  *   Library is under GPL License (GPL)
@@ -20943,9 +23629,9 @@ draw2d.Connection = draw2d.shape.basic.PolyLine.extend({
      {
       if(this.isMoving===false){
           if(refPoint){
-              return this.sourcePort.getConnectionAnchorLocation(refPoint);
+              return this.sourcePort.getConnectionAnchorLocation(refPoint, this);
           }
-          return this.sourcePort.getConnectionAnchorLocation(this.targetPort.getConnectionAnchorReferencePoint());
+          return this.sourcePort.getConnectionAnchorLocation(this.targetPort.getConnectionAnchorReferencePoint(this), this);
       }
 
       return this._super();
@@ -20963,9 +23649,9 @@ draw2d.Connection = draw2d.shape.basic.PolyLine.extend({
      {
       if(this.isMoving===false){
           if(refPoint){
-              return this.targetPort.getConnectionAnchorLocation(refPoint);
+              return this.targetPort.getConnectionAnchorLocation(refPoint, this);
           }
-         return this.targetPort.getConnectionAnchorLocation(this.sourcePort.getConnectionAnchorReferencePoint());
+         return this.targetPort.getConnectionAnchorLocation(this.sourcePort.getConnectionAnchorReferencePoint(this), this);
       }
       
       return this._super();
@@ -21049,7 +23735,7 @@ draw2d.Connection = draw2d.shape.basic.PolyLine.extend({
     
     /**
      * @method
-     * Method returns true if the connection has at least one common port with the given connection.
+     * Method returns true if the connection has at least one common draw2d.Port with the given connection.
      * 
      * @param {draw2d.Connection} other
      * @returns {Boolean}
@@ -21212,11 +23898,10 @@ draw2d.Connection = draw2d.shape.basic.PolyLine.extend({
         // enforce a repaint of all connections which are related to this port
         // this is required for a "FanConnectionRouter" or "ShortesPathConnectionRouter"
         //
-       var connections = this.sourcePort.getConnections();
-       for(var i=0; i<connections.getSize();i++)
-       {
-          connections.get(i).repaint();
-       }
+       this.sourcePort.getConnections().each(function(i,conn){
+           conn.routingRequired = true;
+           conn.repaint();
+       });
     },
     
     /**
@@ -21227,11 +23912,10 @@ draw2d.Connection = draw2d.shape.basic.PolyLine.extend({
         // enforce a repaint of all connections which are related to this port
         // this is required for a "FanConnectionRouter" or "ShortesPathConnectionRouter"
         //
-       var connections = this.targetPort.getConnections();
-       for(var i=0; i<connections.getSize();i++)
-       {
-          connections.get(i).repaint();
-       }
+       this.targetPort.getConnections().each(function(i,conn){
+           conn.routingRequired = true;
+           conn.repaint();
+       });
     },
     
     
@@ -21762,9 +24446,14 @@ draw2d.ResizeHandle = draw2d.shape.basic.Rectangle.extend({
      * Will be called if the drag and drop action beginns. You can return [false] if you
      * want avoid that the figure can be move.
      * 
-    * @return {boolean} true whenever the drag drop operation is allowed.
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
+     * @return {boolean} true whenever the drag drop operation is allowed.
      **/
-    onDragStart : function()
+    onDragStart : function(x, y, shiftKey, ctrlKey)
     {
         // This happens if the selected figure has set the "nonResizeable" flag
         // In this case the ResizeHandle can't be dragged. => no resize
@@ -21810,23 +24499,32 @@ draw2d.ResizeHandle = draw2d.shape.basic.Rectangle.extend({
         var diffY = this.getAbsoluteY() - oldY;
 
         var obj = this.owner;
-        var objPosX = obj.getAbsoluteX();
-        var objPosY = obj.getAbsoluteY();
-        var objWidth = obj.getWidth();
+        var objPosX   = obj.getAbsoluteX();
+        var objPosY   = obj.getAbsoluteY();
+        var objWidth  = obj.getWidth();
         var objHeight = obj.getHeight();
 
-        switch (this.type) {
+        var newX=null;
+        var newY=null;
+        var corrPos=null;
+        switch(this.type) {
         case 1:
             obj.setDimension(objWidth - diffX, objHeight - diffY);
-            obj.setPosition(objPosX + (objWidth - obj.getWidth()), objPosY + (objHeight - obj.getHeight()));
+            newX=objPosX + (objWidth - obj.getWidth());
+            newY=objPosY + (objHeight - obj.getHeight());
+            obj.setPosition(newX, newY);
             break;
         case 2:
             obj.setDimension(objWidth, objHeight - diffY);
-            obj.setPosition(objPosX, objPosY + (objHeight - obj.getHeight()));
+            newX= objPosX;
+            newY= objPosY + (objHeight - obj.getHeight());
+            obj.setPosition(newX, newY);
             break;
         case 3:
             obj.setDimension(objWidth + diffX, objHeight - diffY);
-            obj.setPosition(objPosX, objPosY + (objHeight - obj.getHeight()));
+            newX= objPosX;
+            newY= objPosY + (objHeight - obj.getHeight());
+            obj.setPosition(newX, newY);
             break;
         case 4:
             obj.setDimension(objWidth + diffX, objHeight);
@@ -21839,12 +24537,26 @@ draw2d.ResizeHandle = draw2d.shape.basic.Rectangle.extend({
             break;
         case 7:
             obj.setDimension(objWidth - diffX, objHeight + diffY);
-            obj.setPosition(objPosX + (objWidth - obj.getWidth()), objPosY);
+            newX=objPosX + (objWidth - obj.getWidth());
+            newY=objPosY;
+            obj.setPosition(newX, newY);
             break;
         case 8:
             obj.setDimension(objWidth - diffX, objHeight);
-            obj.setPosition(objPosX + (objWidth - obj.getWidth()), objPosY);
+            newX = objPosX + (objWidth - obj.getWidth());
+            newY = objPosY;
+            obj.setPosition(newX, newY);
             break;
+        }
+        
+        if(newX!==null){
+            // may the setPosition has changed regarding any constraint or edit policies. In this case
+            // we must adjust the dimension with the related correction
+            //
+            corrPos = obj.getPosition();
+            if(corrPos.x!==newX || corrPos.y!==newY){
+                obj.setDimension(obj.getWidth() - (corrPos.x-newX), obj.getHeight()- (corrPos.y-newY));
+            }
         }
     },
 
@@ -21852,9 +24564,13 @@ draw2d.ResizeHandle = draw2d.shape.basic.Rectangle.extend({
      * @method
      * Will be called after a drag and drop action.<br>
      *
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @private
      **/
-    onDragEnd : function()
+    onDragEnd : function(x, y, shiftKey, ctrlKey)
     {
         if (!this.isDraggable()) {
             return;
@@ -21977,7 +24693,7 @@ draw2d.ResizeHandle = draw2d.shape.basic.Rectangle.extend({
       this.setCanvas(canvas);
     
       this.canvas.resizeHandles.add(this);
-      this.shape.toFront();
+      this.shape.insertAfter(this.owner.getShapeElement());
     },
     
     /**
@@ -22225,11 +24941,13 @@ draw2d.shape.basic.LineResizeHandle = draw2d.shape.basic.Circle.extend({
      * Called if the drag and drop action beginns. You can return [false] if you
      * want avoid the that the figure can be move.
      *
-     * @param {Number} x The x position where the mouse has been clicked in the figure
-     * @param {Number} y The y position where the mouse has been clicked in the figure
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @type {boolean}
      **/
-    onDragStart : function()
+    onDragStart : function(x, y, shiftKey, ctrlKey)
     {
         this.command = this.getCanvas().getCurrentSelection().createCommand(new draw2d.command.CommandType(draw2d.command.CommandType.MOVE_BASEPOINT));
         this.setAlpha(0.2);
@@ -22279,9 +24997,15 @@ draw2d.shape.basic.LineResizeHandle = draw2d.shape.basic.Circle.extend({
     /**
      * @method Called after a drag and drop action.<br>
      *         Sub classes can override this method to implement additional stuff. Don't forget to call the super implementation via <code>this._super();</code>
+     *         
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
      * @return {boolean}
      */
-    onDragEnd : function()
+    onDragEnd : function( x, y, shiftKey, ctrlKey)
     {
         if (!this.isDraggable()) {
             return false;
@@ -22293,9 +25017,10 @@ draw2d.shape.basic.LineResizeHandle = draw2d.shape.basic.Circle.extend({
         if (port !== null) {
             if (this.currentTarget !== null) {
                 
-                this.onDrop(this.currentTarget);
+                this.onDrop(this.currentTarget, x, y, shiftKey, ctrlKey);
                 this.currentTarget.onDragLeave(port);
                 this.currentTarget.setGlow(false);
+                this.currentTarget.onCatch(this, x, y, shiftKey, ctrlKey);
                 this.currentTarget = null;
             }
         }
@@ -22490,8 +25215,12 @@ draw2d.shape.basic.LineStartResizeHandle = draw2d.shape.basic.LineResizeHandle.e
      * Resize handle has been drop on a InputPort/OutputPort.
      * 
      * @param {draw2d.Port} dropTarget
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      **/
-    onDrop:function( dropTarget)
+    onDrop:function( dropTarget, x, y, shiftKey, ctrlKey)
     {
     	this.owner.isMoving=false;
     
@@ -22602,9 +25331,15 @@ draw2d.shape.basic.LineEndResizeHandle = draw2d.shape.basic.LineResizeHandle.ext
     
     /**
      * Resizehandle has been drop on a InputPort/OutputPort.
+     * 
+     * @param {draw2d.Figure} dropTarget
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @private
      **/
-    onDrop:function( dropTarget)
+    onDrop:function( dropTarget, x, y, shiftKey, ctrlKey)
     {
     	this.owner.isMoving=false;
       
@@ -22678,11 +25413,15 @@ draw2d.shape.basic.VertexResizeHandle = draw2d.ResizeHandle.extend({
     
     /**
      * @method
-     * Will be called after a drag and drop action.<br>
+     * Called if a drag&drop operation starts.<br>
      *
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @private
      **/
-    onDragStart : function()
+    onDragStart : function(x,y, shiftKey, ctrlKey)
     {
     	if(this.isDead===true){
     		return;
@@ -22765,9 +25504,15 @@ draw2d.shape.basic.VertexResizeHandle = draw2d.ResizeHandle.extend({
     /**
      * @method Called after a drag and drop action.<br>
      *         Sub classes can override this method to implement additional stuff. Don't forget to call the super implementation via <code>this._super();</code>
+     *         
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
      * @return {boolean}
      */
-    onDragEnd : function()
+    onDragEnd : function( x, y, shiftKey, ctrlKey)
     {
         if (this.isDead===true || this.command===null) {
             return false;
@@ -22988,9 +25733,15 @@ draw2d.shape.basic.GhostVertexResizeHandle = draw2d.shape.basic.LineResizeHandle
     /**
      * @method Called after a drag and drop action.<br>
      *         Sub classes can override this method to implement additional stuff. Don't forget to call the super implementation via <code>this._super();</code>
+     *         
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     *
      * @return {boolean}
      */
-    onDragEnd : function()
+    onDragEnd : function(x, y, shiftKey, ctrlKey)
     {
         return true;
     },
@@ -23136,17 +25887,21 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
         this.connectionAnchor = anchor;
         this.connectionAnchor.setOwner(this);
 
+        // the anchor has changed. In this case all connections needs an change event to recalculate
+        // the anchor and the routing itself
+        this.fireMoveEvent();
+
         return this;
     },
  
-    getConnectionAnchorLocation:function(referencePoint)
+    getConnectionAnchorLocation:function(referencePoint, inquiringConnection)
     {
-    	return this.connectionAnchor.getLocation(referencePoint);
+    	return this.connectionAnchor.getLocation(referencePoint, inquiringConnection);
     },
     
-    getConnectionAnchorReferencePoint:function()
+    getConnectionAnchorReferencePoint:function(inquiringConnection)
     {
-    	return this.connectionAnchor.getReferencePoint();
+    	return this.connectionAnchor.getReferencePoint(inquiringConnection);
     },
  
     
@@ -23371,9 +26126,14 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
     /**
      * @inheritdoc
      * 
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
+     * 
      * @return {boolean}
      **/
-    onDragStart : function()
+    onDragStart : function(x, y, shiftKey, ctrlKey)
     {
         // just allow the DragOperation if the port didn't have reached the max fanOut
         // limit.
@@ -23384,10 +26144,10 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
         // this can happen if the user release the mouse button outside the window during a drag&drop
         // operation
         if(this.isInDragDrop ===true){
-            this.onDragEnd();
+            this.onDragEnd( x, y, shiftKey, ctrlKey);
         }
                 
-        this.getShapeElement().toFront();
+        this.getShapeElement().insertAfter(this.parent.getShapeElement());
        // don't call the super method. This creates a command and this is not necessary for a port
        this.ox = this.x;
        this.oy = this.y;
@@ -23396,7 +26156,7 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
         //
         this.editPolicy.each($.proxy(function(i,e){
             if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
-                e.onDragStart(this.canvas, this);
+                e.onDragStart(this.canvas, this, x, y, shiftKey, ctrlKey);
             }
         },this));
 
@@ -23408,8 +26168,10 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
      * 
      * @param {Number} dx the x difference between the start of the drag drop operation and now
      * @param {Number} dy the y difference between the start of the drag drop operation and now
+     * @param {Number} dx2 The x diff since the last call of this dragging operation
+     * @param {Number} dy2 The y diff since the last call of this dragging operation
      **/
-    onDrag:function(dx, dy)
+    onDrag:function(dx, dy, dx2, dy2)
     {
       this.isInDragDrop = true;
 
@@ -23449,9 +26211,12 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
     
     
     /**
-     * @inheritdoc
+     * @param {Number} x the x-coordinate of the mouse event
+     * @param {Number} y the y-coordinate of the mouse event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      **/
-    onDragEnd:function()
+    onDragEnd:function(x, y, shiftKey, ctrlKey)
     {
       // Don't call the parent implementation. This will create an CommandMove object
       // and store them o the CommandStack for the undo operation. This makes no sense for a
@@ -23479,7 +26244,7 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
       
       this.editPolicy.each($.proxy(function(i,e){
           if(e instanceof draw2d.policy.figure.DragDropEditPolicy){
-              e.onDragEnd(this.canvas, this);
+              e.onDragEnd(this.canvas, this, x, y, shiftKey, ctrlKey);
           }
       },this));
 
@@ -23544,9 +26309,13 @@ draw2d.Port = draw2d.shape.basic.Circle.extend({
      * Called if the user drop this element onto the dropTarget
      * 
      * @param {draw2d.Figure} dropTarget The drop target.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * @private
      **/
-    onDrop:function(dropTarget)
+    onDrop:function(dropTarget, x, y, shiftKey, ctrlKey)
     {
     	// Ports accepts only Ports as DropTarget
     	//
@@ -23845,15 +26614,15 @@ draw2d.InputPort = draw2d.Port.extend({
     /**
      * @inheritdoc
      **/
-    onDragEnter : function(figure)
+    onDragEnter : function(draggedPort)
     {
         // User drag&drop a normal port
-        if (figure instanceof draw2d.OutputPort) {
-            return this._super(figure);
+        if (draggedPort instanceof draw2d.OutputPort) {
+            return this._super(draggedPort);
         }
         // User drag&drop a normal port
-        if (figure instanceof draw2d.HybridPort) {
-            return this._super(figure);
+        if (draggedPort instanceof draw2d.HybridPort) {
+            return this._super(draggedPort);
         }
         
         return null;
@@ -24142,13 +26911,15 @@ draw2d.layout.anchor.ConnectionAnchor = Class.extend({
      * Returns the location where the Connection should be anchored in absolute coordinates. 
      * The anchor may use the given reference Point to calculate this location.
      * 
-     * @param
+     * @param {draw2d.geo.Point} reference the opposite reference point
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+     * 
      * @return {Number} reference The reference Point in absolute coordinates
      */
-    getLocation:function(reference)
+    getLocation:function(reference, inquiringConnection)
     {
        // return the center of the owner/port.
-       return this.getReferencePoint();
+       return this.getReferencePoint(inquiringConnection);
     },
     
     /**
@@ -24193,9 +26964,10 @@ draw2d.layout.anchor.ConnectionAnchor = Class.extend({
      * Returns the reference point for this anchor in absolute coordinates. This might be used
      * by another anchor to determine its own location.
      * 
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
      * @return {draw2d.geo.Point} The reference Point
      */
-    getReferencePoint:function()
+    getReferencePoint:function(inquiringConnection)
     {
        return this.getOwner().getAbsolutePosition();
     }
@@ -24224,7 +26996,8 @@ draw2d.layout.anchor.ChopboxConnectionAnchor = draw2d.layout.anchor.ConnectionAn
 	/**
 	 * @constructor
 	 * 
-	 * @param {draw2d.Figure} [owner] the figure to use for the anchor calculation
+	 * @param {draw2d.Figure} owner the figure to use for the anchor calculation
+
 	 */
 	init : function(owner) {
 		this._super(owner);
@@ -24237,10 +27010,12 @@ draw2d.layout.anchor.ChopboxConnectionAnchor = draw2d.layout.anchor.ConnectionAn
 	 * absolute coordinates. The anchor may use the given reference
 	 * Point to calculate this location.
 	 * 
-	 * @param reference The reference Point in absolute coordinates
+	 * @param {draw2d.geo.Point} reference The reference Point in absolute coordinates
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
 	 * @return The anchor's location
 	 */
-	getLocation : function(reference) {
+	getLocation : function(reference, inquiringConnection) {
+	    
 		var r = new draw2d.geo.Rectangle(0,0);
 		r.setBounds(this.getBox());
 		r.translate(-1, -1);
@@ -24248,8 +27023,9 @@ draw2d.layout.anchor.ChopboxConnectionAnchor = draw2d.layout.anchor.ConnectionAn
 
 		var center = r.getCenter();
 
-		if (r.isEmpty()	|| (reference.x == center.x && reference.y == center.y))
+		if (r.isEmpty()	|| (reference.x === center.x && reference.y === center.y)){
 			return center; // This avoids divide-by-zero
+		}
 
 		var dx = reference.x - center.x;
 		var dy = reference.y - center.y;
@@ -24278,13 +27054,167 @@ draw2d.layout.anchor.ChopboxConnectionAnchor = draw2d.layout.anchor.ConnectionAn
 	/**
 	 * @method
 	 * 
+     * Returns the reference point for this anchor in absolute coordinates. This might be used
+     * by another anchor to determine its own location.
+	 * 
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+	 * @return The bounds of this Anchor's owner
+	 */
+	getReferencePoint : function(inquiringConnection) {
+		return this.getBox().getCenter();
+	}
+});
+
+/*****************************************
+ *   Library is under GPL License (GPL)
+ *   Copyright (c) 2012 Andreas Herz
+ ****************************************//**
+ * @class draw2d.layout.anchor.FanConnectionAnchor
+ * 
+ * The FanConnectionAnchor's location is found by calculating the intersection of a
+ * line drawn from the center point of its owner's box (the parent of the
+ * connection port) to a reference point on that box.
+ * Additional the anchor resolves conflicts by spread the anchor if more than one
+ * connection has the same reference point. <br>
+ * In a case of a DirectRouter parallel connections are the result.
+ * 
+ * 
+ * @inheritable
+ * @author Andreas Herz
+ * @since 4.6.0
+ * @extends draw2d.layout.anchor.ConnectionAnchor
+ */
+draw2d.layout.anchor.FanConnectionAnchor = draw2d.layout.anchor.ConnectionAnchor.extend({
+
+	NAME : "draw2d.layout.anchor.FanConnectionAnchor",
+
+	/**
+	 * @constructor
+	 * 
+	 * @param {draw2d.Figure} owner the figure to use for the anchor calculation
+	 * @param {Number} [separation] the separation or fan distance between the concurrent/conflicting anchors 
+	 */
+	init : function(owner, separation) {
+		this._super(owner);
+		
+		if( separation ){
+		    this.separation = parseInt(separation);
+		}
+		else{
+		    this.separation = 10;
+		}
+	},
+
+	/**
+	 * @method
+	 * 
+	 * Returns the location where the Connection should be anchored in
+	 * absolute coordinates. The anchor may use the given reference
+	 * Point to calculate this location.
+	 * 
+	 * @param {draw2d.geo.Point} reference The reference Point in absolute coordinates
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+	 * @return The anchor's location
+	 */
+	getLocation : function(reference, inquiringConnection) {
+
+	    var r = new draw2d.geo.Rectangle(0,0);
+        r.setBounds(this.getBox());
+        r.translate(-1, -1);
+        r.resize(1, 1);
+
+        var center = r.getCenter();
+
+        if (r.isEmpty() || (reference.x === center.x && reference.y === center.y)){
+            return center; // This avoids divide-by-zero
+        }
+
+        // translate the center if required
+        //
+        var s = inquiringConnection.getSource();
+        var t = inquiringConnection.getTarget();
+        var lines = this.getOwner().getConnections().clone();
+        lines.grep(function(other){
+            return (other.getTarget() === t && other.getSource() === s) ||(other.getTarget() === s && other.getSource() === t);
+        });
+        var index= lines.indexOf(inquiringConnection)+1;
+        var position = center.getPosition(reference);
+        var ray;
+        if (position == draw2d.geo.PositionConstants.SOUTH || position == draw2d.geo.PositionConstants.EAST){
+            ray = new draw2d.geo.Point(reference.x - center.x, reference.y - center.y);
+        }
+        else{
+            ray = new draw2d.geo.Point(center.x - reference.x, center.y - reference.y);
+        }
+        var length = Math.sqrt(ray.x * ray.x + ray.y * ray.y);
+        if(index<=2){
+            length *= 1.5;
+        }
+        var xSeparation = this.separation * ray.x / length;
+        var ySeparation = this.separation * ray.y / length;
+        if (index % 2 === 0){
+            center = new draw2d.geo.Point(center.x + (index / 2) * (-1 * ySeparation), center.y + (index / 2) * xSeparation);
+        }
+        else{
+            center = new draw2d.geo.Point(center.x + (index / 2) * ySeparation, center.y + (index / 2) * (-1 * xSeparation));
+        }
+
+        var intersections= this.getBox().intersectionWithLine(center, reference);
+        // perfect - one intersection mean that the shifted center point is inside the bounding box and has only one intersection with it.
+        //
+        switch(intersections.getSize()){
+            case 0:
+                // calculate the edge of the boundign box which is nearest to the reference point
+                //
+                var v = this.getBox().getVertices();
+                var first = v.first();
+                first.distance = reference.getDistance(first);
+                return v.asArray().reduce(function(previous, current){
+                    current.distance= reference.getDistance(current);
+                    return current.distance<previous.distance?current:previous;
+                });
+            case 1:
+                return intersections.get(0);
+                break;
+            case 2:
+                // get the nearest of these points
+                var p0= intersections.get(0); 
+                var p1= intersections.get(1); 
+                var p0diff = reference.getDistance(p0);
+                var p1diff = reference.getDistance(p1);
+                if(p0diff<p1diff){
+                    return p0;
+                }
+                return p1;
+        }
+        
+        // we have 0 or 2 intersections with the bounding box. This means the shifted 
+        // calculate the intersection if the new "center" with the bounding box of the 
+        // shape (if any exists)
+        
+	},
+	
+	/**
 	 * Returns the bounds of this Anchor's owner. Subclasses can
 	 * override this method to adjust the box. Maybe you return the box
 	 * of the port parent (the parent figure)
 	 * 
 	 * @return The bounds of this Anchor's owner
 	 */
-	getReferencePoint : function() {
+	getBox : function() {
+		return this.getOwner().getParent().getBoundingBox();
+	},
+
+	/**
+	 * @method
+	 * 
+     * Returns the reference point for this anchor in absolute coordinates. This might be used
+     * by another anchor to determine its own location.
+	 * 
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+	 * @return The bounds of this Anchor's owner
+	 */
+	getReferencePoint : function(inquiringConnection) {
 		return this.getBox().getCenter();
 	}
 });
@@ -24327,9 +27257,11 @@ draw2d.layout.anchor.ShortesPathConnectionAnchor = draw2d.layout.anchor.Connecti
 	 * Point to calculate this location.
 	 * 
 	 * @param {draw2d.geo.Point} ref The reference Point in absolute coordinates
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+     * 
 	 * @return {draw2d.geo.Point} The anchor's location
 	 */
-	getLocation : function(ref) {
+	getLocation : function(ref, inquiringConnection) {
 		var r =  this.getOwner().getParent().getBoundingBox();
 	    var center = r.getCenter();
 	    
@@ -24391,9 +27323,11 @@ draw2d.layout.anchor.ShortesPathConnectionAnchor = draw2d.layout.anchor.Connecti
 	 * override this method to adjust the box. Maybe you return the box
 	 * of the port parent (the parent figure)
 	 * 
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+     * 
 	 * @return The bounds of this Anchor's owner
 	 */
-	getReferencePoint : function() {
+	getReferencePoint : function(inquiringConnection) {
 		return this.getBox().getCenter();
 	}
 });
@@ -24436,9 +27370,11 @@ draw2d.layout.anchor.CenterEdgeConnectionAnchor = draw2d.layout.anchor.Connectio
 	 * Point to calculate this location.
 	 * 
 	 * @param {draw2d.geo.Point} ref The reference Point in absolute coordinates
+     * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
+     * 
 	 * @return {draw2d.geo.Point} The anchor's location
 	 */
-	getLocation : function(ref) {
+	getLocation : function(ref, inquiringConnection) {
 		var r =  this.getOwner().getParent().getBoundingBox();
 	    
 	    var dir = r.getDirection(ref);
@@ -24480,13 +27416,14 @@ draw2d.layout.anchor.CenterEdgeConnectionAnchor = draw2d.layout.anchor.Connectio
 	 * override this method to adjust the box. Maybe you return the box
 	 * of the port parent (the parent figure)
 	 * 
+	 * @param {draw2d.Connection} inquiringConnection the connection who ask for the location.
 	 * @return The bounds of this Anchor's owner
 	 */
-	getReferencePoint : function() {
+	getReferencePoint : function(inquiringConnection) {
 		return this.getBox().getCenter();
 	}
 });
-// TODO GIOVANNI
+
 /*****************************************
  *   Library is under GPL License (GPL)
  *   Copyright (c) 2012 Andreas Herz
@@ -24893,22 +27830,24 @@ draw2d.shape.widget.Slider = draw2d.shape.widget.Widget.extend({
      * Will be called if the drag and drop action begins. You can return [false] if you
      * want avoid that the figure can be move.
      * 
-     * @param {Number} relativeX the x coordinate within the figure
-     * @param {Number} relativeY the y-coordinate within the figure.
+     * @param {Number} x the x-coordinate of the mouse up event
+     * @param {Number} y the y-coordinate of the mouse up event
+     * @param {Boolean} shiftKey true if the shift key has been pressed during this event
+     * @param {Boolean} ctrlKey true if the ctrl key has been pressed during the event
      * 
      * @return {boolean} true if the figure accepts dragging
      **/
-    onDragStart : function(relativeX, relativeY ){
+    onDragStart : function(x, y , shiftKey, ctrlKey){
         
         // check if the use has been clicked on the thumb
         //
-        if(this.slideBoundingBox.hitTest(relativeX, relativeY)){
+        if(this.slideBoundingBox.hitTest(x, y)){
             this.origX=this.slideBoundingBox.getX();
             this.origY=this.slideBoundingBox.getY();
             return false;
         }
         
-        return this._super(relativeX, relativeY);
+        return this._super(x, y, shiftKey, ctrlKey);
     },
     
     /**
@@ -25857,7 +28796,7 @@ draw2d.shape.layout.HorizontalLayout= draw2d.shape.layout.Layout.extend({
      */
     init : function()
     {
-        this._super();
+        this.gap = 0;
         var _this = this;
         this.locator ={ 
                 relocate:function(index, target)
@@ -25874,8 +28813,9 @@ draw2d.shape.layout.HorizontalLayout= draw2d.shape.layout.Layout.extend({
                  }
         };
 
+        this._super();
+
         this.setDimension(1,1);
-        this.gap = 0;
    },
 
    /**
@@ -25903,7 +28843,7 @@ draw2d.shape.layout.HorizontalLayout= draw2d.shape.layout.Layout.extend({
     {
         var width=this.stroke*2+ Math.max(0,this.children.getSize()-1)*this.gap;
         this.children.each(function(i,e){
-            width += e.figure.getMinWidth();
+            width += e.figure.isResizeable()?e.figure.getMinWidth():e.figure.getWidth();
             
         });
         return width;
@@ -25919,7 +28859,7 @@ draw2d.shape.layout.HorizontalLayout= draw2d.shape.layout.Layout.extend({
     {
         var height=10;
         this.children.each(function(i,e){
-            height = Math.max(height, e.figure.getMinHeight());
+            height = Math.max(height,e.figure.isResizeable()? e.figure.getMinHeight(): e.figure.getHeight());
         });
         return height+this.stroke*2;
     },
@@ -25938,12 +28878,19 @@ draw2d.shape.layout.HorizontalLayout= draw2d.shape.layout.Layout.extend({
         if(diff>0){
             diff = (diff/this.children.getSize())|0;
             this.children.each(function(i,e){
-                e.figure.setDimension(e.figure.getMinWidth()+diff,e.figure.getHeight());
+                if(e.figure.isResizeable()===true){
+                    e.figure.setDimension(e.figure.getMinWidth()+diff,e.figure.getHeight());
+                }
             });
         }
         else{
             this.children.each(function(i,e){
-                e.figure.setDimension(1,1);
+                // The layout respect the "resizeable" flag because a layout is a kind of layouter and 
+                // any kind of autolayouter must respect this flag
+                if(e.figure.isResizeable()===true){
+                    // reset the shape to the minimum width/height. see setMinWidth/setMinHeight
+                    e.figure.setDimension(1,1);
+                }
             });
         }
      }
@@ -26013,8 +28960,6 @@ draw2d.shape.layout.VerticalLayout= draw2d.shape.layout.Layout.extend({
      */
     init : function()
     {
-        this._super();
-        
         // some layout parameter
         //
         this.gap = 0;
@@ -26037,6 +28982,8 @@ draw2d.shape.layout.VerticalLayout= draw2d.shape.layout.Layout.extend({
              }
         };
         
+        this._super();
+        
         this.setDimension(10,10);
     },
     
@@ -26058,7 +29005,7 @@ draw2d.shape.layout.VerticalLayout= draw2d.shape.layout.Layout.extend({
     {
         var width=10;
         this.children.each(function(i,e){
-            width = Math.max(width, e.figure.getMinWidth());
+            width = Math.max(width, e.figure.isResizeable()? e.figure.getMinWidth(): e.figure.getWidth());
         });
         return width+this.stroke;
     },
@@ -26067,7 +29014,7 @@ draw2d.shape.layout.VerticalLayout= draw2d.shape.layout.Layout.extend({
     {
         var height=+this.stroke+ Math.max(0,this.children.getSize()-1)*this.gap;
         this.children.each(function(i,e){
-            height += e.figure.getMinHeight();
+            height += e.figure.isResizeable()?e.figure.getMinHeight():e.figure.getHeight();
         });
         
         return height;
@@ -26083,7 +29030,9 @@ draw2d.shape.layout.VerticalLayout= draw2d.shape.layout.Layout.extend({
 
         var width=this.width-this.stroke;
         this.children.each(function(i,e){
-            e.figure.setDimension(width,e.figure.getHeight());
+            if(e.figure.isResizeable()){
+                e.figure.setDimension(width,e.figure.getHeight());
+            }
         });
     }
    
@@ -26116,7 +29065,7 @@ draw2d.shape.icon.Icon = draw2d.SetFigure.extend({
     init: function(width, height) {
       this._super(width, height);
       this.setBackgroundColor("#333333");
-      this.keepAspectRatio = true;
+      this.keepAspectRatio = false;
     },
 
     /**
@@ -26144,12 +29093,34 @@ draw2d.shape.icon.Icon = draw2d.SetFigure.extend({
     },
 
     applyTransformation:function(){
-        if (this.isResizeable()===true) {
-            this.svgNodes.transform("S"+this.scaleX+","+this.scaleY+","+this.getAbsoluteX()+","+this.getAbsoluteY()+ "t"+ (this.getAbsoluteX()-this.offsetX) + "," + (this.getAbsoluteY()-this.offsetY));
-        }
-        else {
-            this.svgNodes.transform("T" + (this.getAbsoluteX()-this.offsetX) + "," + (this.getAbsoluteY()-this.offsetY));
-        }
+       var trans = [];
+         
+       
+       if(this.rotationAngle!==0){
+    	   trans.push("R"+this.rotationAngle);
+       }
+        
+       if(this.getRotationAngle()=== 90|| this.getRotationAngle()===270){
+           var ratio = this.getHeight()/this.getWidth();
+           trans.push("T"+(-this.offsetY) + "," + (-this.offsetX));
+           trans.push("S"+ratio+","+1/ratio+",0,0");
+       }
+       else{
+           trans.push("T"+(-this.offsetX) + "," + (-this.offsetY));
+
+       }
+       
+       if (this.isResizeable()===true) {
+            trans.push(
+              		   "T"+ this.getAbsoluteX() + "," + this.getAbsoluteY()+
+            		   "S"+this.scaleX+","+this.scaleY+","+this.getAbsoluteX()+","+this.getAbsoluteY()
+                       );
+       }
+       else {
+            trans.push("T" + this.getAbsoluteX() + "," + this.getAbsoluteY());
+       }
+
+       this.svgNodes.transform(trans.join(" "));
     },
     
     /**
@@ -35684,15 +38655,15 @@ draw2d.shape.pert.Activity = draw2d.shape.layout.VerticalLayout.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.shape.node.Start
+ * @class draw2d.shape.state.Start
  * 
- * A generic Node which has an OutputPort. Mainly used for demo and examples.
+ * The start node for a state diagram
  * 
  * See the example:
  *
  *     @example preview small frame
  *     
- *     var figure =  new draw2d.shape.node.Start();
+ *     var figure =  new draw2d.shape.state.Start();
  *     figure.setColor("#3d3d3d");
  *     
  *     canvas.addFigure(figure,50,10);
@@ -35732,20 +38703,21 @@ draw2d.shape.state.Start = draw2d.shape.basic.Circle.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.shape.node.Start
+ * @class draw2d.shape.state.End
  * 
- * A generic Node which has an OutputPort. Mainly used for demo and examples.
+ * The end node for a state diagram
  * 
  * See the example:
  *
  *     @example preview small frame
- *     
- *     var figure =  new draw2d.shape.node.Start();
- *     figure.setColor("#3d3d3d");
- *     
- *     canvas.addFigure(figure,50,10);
- *     
- * @extends draw2d.shape.basic.Rectangle
+ *     // create and add two nodes which contains Ports (In and OUT)
+ *     //
+ *     var end   = new draw2d.shape.state.End();
+        
+ *     // ...add it to the canvas 
+ *     canvas.addFigure( end, 230,80);
+  *     
+ * @extends draw2d.shape.basic.Circle
  */
 draw2d.shape.state.End = draw2d.shape.basic.Circle.extend({
 
@@ -35794,9 +38766,30 @@ draw2d.shape.state.End = draw2d.shape.basic.Circle.extend({
 /**
  * @class draw2d.shape.state.State
  * 
- * NOT FOR PRODUCTIVE
+ * a state shape for a state diagram
  * 
- * 
+ *     @example preview small frame
+ *     // create and add two nodes which contains Ports (In and OUT)
+ *     //
+ *     var start = new draw2d.shape.state.Start();
+ *     var state   = new draw2d.shape.state.State();
+        
+ *     // ...add it to the canvas 
+ *     canvas.addFigure( start, 50,50);
+ *     canvas.addFigure( state, 230,180);
+ *          
+ *     // Create a Connection and connect the Start and End node
+ *     //
+ *     var c = new draw2d.shape.state.Connection();
+ *      
+ *     // Connect the endpoints with the start and end port
+ *     //
+ *     c.setSource(start.getOutputPort(0));
+ *     c.setTarget(state.getInputPort(0));
+ *           
+ *     // and finally add the connection to the canvas
+ *     canvas.addFigure(c);
+ *   
  * @extends draw2d.shape.layout.VerticalLayout
  */
 draw2d.shape.state.State = draw2d.shape.layout.VerticalLayout.extend({
@@ -35930,20 +38923,38 @@ draw2d.shape.state.State = draw2d.shape.layout.VerticalLayout.extend({
  *   Copyright (c) 2012 Andreas Herz
  ****************************************/
 /**
- * @class draw2d.shape.node.Start
+ * @class draw2d.shape.state.Connection
  * 
- * A generic Node which has an OutputPort. Mainly used for demo and examples.
+ * Connection designed for a state diagram with arrow decoration at the
+ * target of the connection and a label
  * 
  * See the example:
  *
  *     @example preview small frame
  *     
- *     var figure =  new draw2d.shape.node.Start();
- *     figure.setColor("#3d3d3d");
+ *     // create and add two nodes which contains Ports (In and OUT)
+ *     //
+ *     var start = new draw2d.shape.state.Start();
+ *     var end   = new draw2d.shape.state.End();
+        
+ *     // ...add it to the canvas 
+ *     canvas.addFigure( start, 50,50);
+ *     canvas.addFigure( end, 230,180);
+ *          
+ *     // Create a Connection and connect the Start and End node
+ *     //
+ *     var c = new draw2d.shape.state.Connection();
+ *      
+ *     // Connect the endpoints with the start and end port
+ *     //
+ *     c.setSource(start.getOutputPort(0));
+ *     c.setTarget(end.getInputPort(0));
+ *           
+ *     // and finally add the connection to the canvas
+ *     canvas.addFigure(c);
  *     
- *     canvas.addFigure(figure,50,10);
  *     
- * @extends draw2d.shape.basic.Rectangle
+ * @extends draw2d.Connection
  */
 draw2d.shape.state.Connection = draw2d.Connection.extend({
 
@@ -35954,7 +38965,7 @@ draw2d.shape.state.Connection = draw2d.Connection.extend({
 	init : function()
     {
         this._super();
-        this.setRouter(draw2d.shape.state.Connection.DEFAULT_ROUTER);
+        this.setRouter(null);
 
         this.setStroke(2);
         this.setTargetDecorator(new draw2d.decoration.connection.ArrowDecorator(17,8));
@@ -35964,7 +38975,7 @@ draw2d.shape.state.Connection = draw2d.Connection.extend({
         this.label.setStroke(1);
         this.label.setPadding(2);
         this.label.setBackgroundColor("#f0f0f0");
-        this.addFigure(this.label, new draw2d.layout.locator.PolylineMidpointLocator(this));
+        this.addFigure(this.label, new draw2d.layout.locator.ParallelMidpointLocator(this));
       
     },
     /**
@@ -36028,9 +39039,6 @@ draw2d.shape.state.Connection = draw2d.Connection.extend({
     }
 
 });
-
-draw2d.shape.state.Connection.DEFAULT_ROUTER = new draw2d.layout.connection.FanConnectionRouter();
-
 
 /*****************************************
  *   Library is under GPL License (GPL)
@@ -36581,10 +39589,12 @@ draw2d.decoration.connection.CircleDecorator = draw2d.decoration.connection.Deco
 	 **/
 	paint:function(paper)
 	{
-		var shape= paper.circle(0, 0, this.width/2);
-        shape.attr({fill:this.backgroundColor.hash(),stroke:this.color.hash()});
+        var st = paper.set();
+        
+		st.push(paper.circle(0, 0, this.width/2));
+        st.attr({fill:this.backgroundColor.hash(),stroke:this.color.hash()});
 		
-		return shape;
+		return st;
 	}
 });
 
@@ -36702,6 +39712,8 @@ draw2d.io.Reader = Class.extend({
      * 
      * @param {draw2d.Canvas} canvas the canvas to restore
      * @param {Object} document the document to read
+     * 
+     * @return {draw2d.ArrayList} the added elements
      * @template
      */
     unmarshal: function(canvas, document){
@@ -36885,7 +39897,7 @@ draw2d.io.png.Writer = draw2d.io.Writer.extend({
     init:function(){
         this._super();
     },
-    
+
     /**
      * @method
      * Export the content to the implemented data format. Inherit class implements
@@ -36915,6 +39927,21 @@ draw2d.io.png.Writer = draw2d.io.Writer.extend({
         // add missing namespace for images in SVG
         //
         svg = svg.replace("<svg ", "<svg xmlns:xlink=\"http://www.w3.org/1999/xlink\" ");
+       
+        // required for IE9 support. 
+        // The following table contains ready-to-use conditions to detec IE Browser versions
+        //
+        // IE versions     Condition to check for
+        // ------------------------------------------------------------
+        // 10 or older     document.all
+        // 9 or older      document.all && !window.atob
+        // 8 or older      document.all && !document.addEventListener
+        // 7 or older      document.all && !document.querySelector
+        // 6 or older      document.all && !window.XMLHttpRequest
+        // 5.x             document.all && !document.compatMode
+        if(document.all){
+            svg = svg.replace(/xmlns=\"http:\/\/www\.w3\.org\/2000\/svg\"/, '');
+        }
         
         canvasDomNode= $('<canvas id="canvas_png_export_for_draw2d" style="display:none"></canvas>');
         $('body').append(canvasDomNode);
@@ -37013,21 +40040,12 @@ draw2d.io.json.Writer = draw2d.io.Writer.extend({
         }
         
         var result = [];
-        var figures = canvas.getFigures();
-        var i =0;
-        var f= null;
         
-        // conventional iteration over an array
-        //
-        for(i=0; i< figures.getSize(); i++){
-            f = figures.get(i);
-            result.push(f.getPersistentAttributes());
-        }
+        canvas.getFigures().each(function(i, figure){
+            result.push(figure.getPersistentAttributes());
+        });
         
-        // jQuery style to iterate
-        //
-        var lines = canvas.getLines();
-        lines.each(function(i, element){
+        canvas.getLines().each(function(i, element){
             result.push(element.getPersistentAttributes());
         });
         
@@ -37092,6 +40110,7 @@ draw2d.io.json.Reader = draw2d.io.Reader.extend({
      * @param {Object} document the json object to load.
      */
     unmarshal: function(canvas, json){
+        var result = new draw2d.util.ArrayList();
         
         if(typeof json ==="string"){
             json = JSON.parse(json);
@@ -37132,12 +40151,26 @@ draw2d.io.json.Reader = draw2d.io.Reader.extend({
                 }
                 o.setPersistentAttributes(element);
                 canvas.addFigure(o);
+                result.add(o);
             }
             catch(exc){
                 debug.group("Unable to instantiate figure type '"+element.type+"' with id '"+element.id+"' during unmarshal by "+this.NAME+". Skipping figure..");
                 debug.warn(exc);
                 debug.warn(element);
                 debug.groupEnd();
+            }
+        },this));
+        
+        // restore group assignment
+        //
+        $.each(json, $.proxy(function(i, element){
+            if(typeof element.composite !== "undefined"){
+               var figure = canvas.getFigure(element.id);
+               if(figure===null){
+                   figure =canvas.getLine(element.id);
+               }
+               var group = canvas.getFigure(element.composite);
+               group.assignFigure(figure);
             }
         },this));
         
@@ -37151,6 +40184,8 @@ draw2d.io.json.Reader = draw2d.io.Reader.extend({
         canvas.linesToRepaintAfterDragDrop = canvas.getLines().clone();
 
         canvas.showDecoration();
+        
+        return result;
     }
 });
 /*****************************************
